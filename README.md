@@ -61,7 +61,7 @@ queries a target DataPoint for all points that fall within a radius of the targe
 
 ```
 void Delete(long long id)
-``
+```
 
 deletes the datapoint.
 
