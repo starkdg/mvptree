@@ -17,15 +17,17 @@ For any points, x, y and z,
 
 ## Use 
 
-Each data elemetn is stored in a Datapoint struct and looks like
-this:
+DataPoint is an abstract class intended to hold individual data points.  Subclass
+from here to hold application specific data.  Two existing DataPoint subclasses
+are DblDataPoint and H64DataPoint.
 
-```
-struct DataPoint {
-	   long long id;
-	   double value;	 
-};
-```
+DblDataPoint is a general demonstration.  It represents a single floating point
+value.
+
+H64DataPoint represents a 64-bit unsigned integer and uses the hamming distance
+which exists in the discrete 64-dim hamming space.  Distance is calculated by
+the number of bits that are different from each other.  
+
 
 Distances are simply the absolute value of the difference between two values.
 The value is just a scalar but can be easily modified to be any multi-dimensional
@@ -94,3 +96,6 @@ make install
 ```
 
 You can also run `ctest` or `make test` to run the tests.  
+
+
+
