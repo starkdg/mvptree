@@ -1,7 +1,8 @@
 #include <iostream>
 #include <cassert>
 #include <typeinfo>
-#include "mvpnode.hpp"
+#include "mvptree/mvpnode.hpp"
+#include "mvptree/datapoint.hpp"
 
 using namespace std;
 
@@ -10,9 +11,7 @@ static long long id = 1;
 vector<DataPoint*> CreatePoints(const int n){
 	vector<DataPoint*> results;
 	for (int i=0;i<n;i++){
-		DataPoint *dp = new DataPoint();
-		dp->id = id++;
-		dp->value = rand()%100;
+		DataPoint *dp = new DblDataPoint(id++, rand()%100);
 		results.push_back(dp);
 	}
 
@@ -30,19 +29,18 @@ void simple_test(){
 
 
 	cout << "  Create leaf node with " << n_points << " points" << endl;
-	MVPLeaf *leaf = new MVPLeaf();
+	MVPLeaf<> *leaf = new MVPLeaf<>();
 	assert(leaf != NULL);
 
 	map<int, vector<DataPoint*>*> childpoints;
-	MVPNode *node = leaf->AddDataPoints(points, childpoints, 0, 0);
+	MVPNode<> *node = leaf->AddDataPoints(points, childpoints, 0, 0);
 	assert(leaf == node);
 	assert(childpoints.size() == 0);
 	
 	int n = node->GetCount();
-	assert(n  == n_points - MVP_PATHLENGTH);
+	assert(n  == n_points - 8);
 	
-	DataPoint target;
-	target.value = 50;
+	DblDataPoint target(0, 50);
 	double radius = 10;
 	
 	vector<DataPoint*> results = node->FilterDataPoints(&target, radius);
@@ -50,7 +48,8 @@ void simple_test(){
 	
 	cout << "  Query returns " << results.size() << " results." << endl;
 	for (DataPoint *dp : results){
-		cout << "    id = " << dp->id << " value = " << dp->value << " "<< endl;
+		DblDataPoint *pnt = (DblDataPoint*)dp;
+		cout << "    id = " << pnt->GetId() << " value = " << pnt->GetValue() << " "<< endl;
 	}
 
 	vector<DataPoint*> vps = node->GetVantagePoints();
@@ -66,7 +65,7 @@ void simple_test(){
 
 	cout << " Add " << n_points2 << " points to leaf ==> internal" << endl;
 
-	MVPNode *node2 = node->AddDataPoints(points2, childpoints, 0, 0);
+	MVPNode<> *node2 = node->AddDataPoints(points2, childpoints, 0, 0);
 	assert(node2 != node);
 
 	assert(typeid(*node2).hash_code() == typeid(MVPInternal).hash_code());
@@ -85,7 +84,7 @@ void simple_test(){
 	}
 
 	vector<DataPoint*> vps2 = node2->GetVantagePoints();
-	assert(vps2.size() == MVP_LEVELSPERNODE);
+	assert(vps2.size() == 2);
 
 	for (DataPoint *dp : vps2) delete dp;
 	

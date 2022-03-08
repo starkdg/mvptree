@@ -5,27 +5,27 @@ project(mvptree VERSION 0.1.0.0
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
-set(MVPTREE_SRCS mvpnode.cpp mvptree.cpp)
+add_library(mvptree INTERFACE)
+target_include_directories(mvptree INTERFACE include/)
 
-
-add_library(mvptree STATIC ${MVPTREE_SRCS})
-set_target_properties(mvptree PROPERTIES PUBLIC_HEADER mvptree.hpp)
-
-add_executable(testmvpnode test_mvpnode.cpp)
-target_compile_options(testmvpnode PUBLIC -g -O0 -Wall)
+add_executable(testmvpnode tests/test_mvpnode.cpp)
+target_compile_options(testmvpnode PUBLIC -g -O0 -Wall -Wno-unused-variable)
 target_link_libraries(testmvpnode mvptree)
 
-add_executable(testmvptree test_mvptree.cpp)
-target_compile_options(testmvptree PUBLIC -g -O0 -Wall)
+add_executable(testmvptree tests/test_mvptree.cpp)
+target_compile_options(testmvptree PUBLIC -g -O0 -Wall -Wno-unused-variable)
 target_link_libraries(testmvptree mvptree)
 
+add_executable(runmvptree tests/run_mvptree.cpp)
+target_compile_options(runmvptree PUBLIC -g -O2 -Wall -Wno-unused-variable)
+target_link_libraries(runmvptree mvptree)
 
 include(CTest)
 add_test(NAME testnodes COMMAND  testmvpnode)
 add_test(NAME testtree  COMMAND testmvptree)
 
 
-install(TARGETS mvptree ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include)
+install(TARGETS mvptree PUBLIC_HEADER DESTINATION include)
 
 
 
