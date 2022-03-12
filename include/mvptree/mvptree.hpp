@@ -2,6 +2,7 @@
 #define _MVPTREE_H
 
 #include <cstdlib>
+#include <cstdint>
 #include <cmath>
 #include <vector>
 #include <map>
@@ -45,8 +46,7 @@ private:
 				   map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes)const;
 	void ExpandNode(MVPNode<BF,PL,LC,LPN,FO,NS> *node,
 					map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes, const int index)const;
-	MVPNode<BF,PL,LC,LPN,FO,NS>* ProcessNode(const int level,
-											 const int index,
+	MVPNode<BF,PL,LC,LPN,FO,NS>* ProcessNode(const int level, const int index,
 											 MVPNode<BF,PL,LC,LPN,FO,NS> *node, vector<DataPoint*> &points,
 											 map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes,
 											 map<int, vector<DataPoint*>*> &childpoints);
@@ -69,7 +69,7 @@ public:
 	
 	void Clear();
 
-	const vector<DataPoint*> Query(const DataPoint &target, const double radius) const;
+	const vector<DataPoint*> Query(const uint64_t target_value, const double radius) const;
 
 	size_t MemoryUsage()const;
 
@@ -279,7 +279,7 @@ void MVPTree<BF,PL,LC,LPN,FO,NS>::Clear(){
 }
 
 template<int BF,int PL, int LC, int LPN, int FO, int NS>
-const vector<DataPoint*> MVPTree<BF,PL,LC,LPN,FO,NS>::Query(const DataPoint &target, const double radius) const{
+const vector<DataPoint*> MVPTree<BF,PL,LC,LPN,FO,NS>::Query(const uint64_t target_value, const double radius) const{
 	vector<DataPoint*> results;
 	
 	map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
@@ -294,7 +294,7 @@ const vector<DataPoint*> MVPTree<BF,PL,LC,LPN,FO,NS>::Query(const DataPoint &tar
 			int node_index = iter->first;
 			MVPNode<BF,PL,LC,LPN,FO,NS> *mvpnode = iter->second;
 			if (mvpnode != NULL){
-				mvpnode->TraverseNode(target, radius, childnodes, node_index, results);
+				mvpnode->TraverseNode(target_value, radius, childnodes, node_index, results);
 			}
 		}
 		currnodes = move(childnodes);
