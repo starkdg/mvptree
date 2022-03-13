@@ -17,7 +17,7 @@ target_compile_options(testmvptree PUBLIC -g -O0 -Wall -Wno-unused-variable)
 target_link_libraries(testmvptree mvptree)
 
 add_executable(runmvptree tests/run_mvptree.cpp)
-target_compile_options(runmvptree PUBLIC -g -O2 -Wall -Wno-unused-variable)
+target_compile_options(runmvptree PUBLIC -g -O0 -Wall -Wno-unused-variable)
 target_link_libraries(runmvptree mvptree)
 
 include(CTest)

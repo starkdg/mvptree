@@ -19,24 +19,16 @@ using namespace std;
 static long long m_id = 1;
 static random_device m_rd;
 static mt19937_64 m_gen(m_rd());
+static uniform_int_distribution<uint64_t> m_distrib(0);
+
 static const int n_centers = 10;
-static uint64_t m_centers[n_centers] = { 18148035672868347669ULL,
-										 10688543864520834669ULL,
-										 16028476346516770062ULL,
-										 17961425813529742258ULL,
-										 7444114960081445947ULL,
-										 9854318445595321943ULL,
-										 11236144061248274449ULL,
-										 11547244318982070173ULL,
-										 2654917725676225155ULL,
-										 10810302761392987044ULL};
 
 const int bf = 2;   //branchfactor
-const int pl = 3;   // pathlength
-const int lc = 80; // leafcap
-const int lpn = 2;  // levelspernode
-const int fo = 4; //fanout bf^lpn
-const int ns = 2; //numsplits bf^(lpn-1)
+const int pl = 8;   // pathlength
+const int lc = 100; // leafcap
+const int lpn = 8;  // levelspernode
+const int fo = 256; //fanout bf^lpn
+const int ns = 128; //numsplits bf^(lpn-1)
 
 const int n_runs = 10;
 
@@ -62,9 +54,8 @@ struct PerfMetrics {
 };
 
 int generate_data(vector<DataPoint*> &points, int N){
-	uniform_int_distribution<int> distr(0);
 	for (int i=0;i<N;i++){
-		uint64_t value = distr(m_gen);
+		uint64_t value = m_distrib(m_gen);
 		DataPoint *pnt = new H64DataPoint(m_id++, value);
 		points.push_back(pnt);
 	}
@@ -72,8 +63,8 @@ int generate_data(vector<DataPoint*> &points, int N){
 }
 
 int generate_cluster(vector<DataPoint*> &points, uint64_t center, int N, int max_radius){
-	uniform_int_distribution<int> radius_distr(1, max_radius);
-	uniform_int_distribution<int> bitindex_distr(0, 63);
+	static uniform_int_distribution<int> radius_distr(1, max_radius);
+	static uniform_int_distribution<int> bitindex_distr(0, 63);
 		
 	uint64_t mask = 0x01;
 
@@ -116,10 +107,12 @@ void do_run(MVPTree<bf,pl,lc,lpn,fo,ns> &mvptree, vector<PerfMetrics> &metrics){
 	cout << "build: "  << setw(10) << setprecision(6) << avgs.build_ops << "% opers - ("
 		 << setw(10) << setprecision(6) << avgs.build_time << " seconds)";
 
+	uint64_t centers[n_centers];
 
 	for (int i=0;i < n_centers;i++){
+		centers[i] = m_distrib(m_gen);
 		vector<DataPoint*> points;
-		generate_cluster(points, m_centers[i], cluster_size, radius);
+		generate_cluster(points, centers[i], cluster_size, radius);
 		mvptree.Add(points);
 	}
 
@@ -128,12 +121,10 @@ void do_run(MVPTree<bf,pl,lc,lpn,fo,ns> &mvptree, vector<PerfMetrics> &metrics){
 	sz = mvptree.Size();
 
 
-	cout << endl;
-	
 	DataPoint::ResetCount();
-	chrono::duration<double, micro> total_query(0);
+	chrono::duration<double, milli> total_query(0);
 	for (int i=0;i < n_centers;i++){
-		H64DataPoint target(0, m_centers[i]);
+		H64DataPoint target(0, centers[i]);
 		auto s = chrono::steady_clock::now();
 		vector<DataPoint*> results = mvptree.Query(target, radius);
  		auto e = chrono::steady_clock::now();
@@ -145,7 +136,7 @@ void do_run(MVPTree<bf,pl,lc,lpn,fo,ns> &mvptree, vector<PerfMetrics> &metrics){
 	
 	cout << setw(10) << right << "query: "
 		 << setw(10)  << setprecision(6) << avgs.query_ops << "% opers - ("
-		 << setw(10) << setprecision(6)  << avgs.query_time << " microsecs)" <<  endl;
+		 << setw(10) << setprecision(6)  << avgs.query_time << " millisecs)" <<  endl;
 
 	metrics.push_back(avgs);
 	mvptree.Clear();
