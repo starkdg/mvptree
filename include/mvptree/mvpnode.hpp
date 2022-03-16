@@ -12,17 +12,24 @@ using namespace std;
 
 template<int BF=2, int PL=8, int LC=30, int LPN=2, int FO=4, int NS=2>
 class MVPNode {
+protected:
+
+	int m_nvps;
+	DataPoint<PL>* m_vps[LPN];
+	
+	void MarkPointDistances(vector<DataPoint<PL>*> &points, const int level);
+
 public:
-	MVPNode(){}
+	MVPNode():m_nvps(0){}
 
 	virtual ~MVPNode(){};
 
-	static MVPNode<BF,PL,LC,LPN,FO,NS>* CreateNode(vector<DataPoint*> &points,
-							   map<int,vector<DataPoint*>*> &childpoints,
+	static MVPNode<BF,PL,LC,LPN,FO,NS>* CreateNode(vector<DataPoint<PL>*> &points,
+							   map<int,vector<DataPoint<PL>*>*> &childpoints,
 							   int level, int index);
 	
-	virtual MVPNode<BF,PL,LC,LPN,FO,NS>* AddDataPoints(vector<DataPoint*> &points,
-								   map<int,vector<DataPoint*>*> &childpoints,
+	virtual MVPNode<BF,PL,LC,LPN,FO,NS>* AddDataPoints(vector<DataPoint<PL>*> &points,
+								   map<int,vector<DataPoint<PL>*>*> &childpoints,
 								   const int level, const int index) = 0;
 
 	virtual const int GetCount()const = 0;
@@ -31,48 +38,54 @@ public:
 
 	virtual MVPNode<BF,PL,LC,LPN,FO,NS>* GetChildNode(int n)const = 0;
 
-	virtual const vector<DataPoint*> GetVantagePoints()const = 0;
+	virtual const vector<DataPoint<PL>*> GetVantagePoints()const = 0;
 	
-	virtual const vector<DataPoint*> GetDataPoints()const = 0;
+	virtual const vector<DataPoint<PL>*> GetDataPoints()const = 0;
 
-	virtual const vector<DataPoint*> FilterDataPoints(const DataPoint *target, const double radius)const = 0;
-
-	virtual void TraverseNode(const DataPoint &target,
+	virtual void FilterDataPoints(const DataPoint<PL> &target,
+										vector<double> &tpath,
+										const double radius,
+										const int level,
+										vector<DataPoint<PL>*> &results)const = 0;
+ 
+	virtual void TraverseNode(const DataPoint<PL> &target,
 							  const double radius,
 							  map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes,
+							  vector<double> *tpath,
+							  map<int, vector<double>*> &child_tdistances,
 							  const int index,
-							  vector<DataPoint*> &results)const = 0;
+							  const int level,
+							  vector<DataPoint<PL>*> &results)const = 0;
 
-	virtual const vector<DataPoint*> PurgeDataPoints()=0;
+	virtual const vector<DataPoint<PL>*> PurgeDataPoints()=0;
 
 };
 
 template<int BF=2,int PL=8,int LC=30,int LPN=2, int FO=4, int NS=2>
 class MVPInternal : public MVPNode<BF,PL,LC,LPN,FO,NS> {
 private:
-	int m_nvps;
-	DataPoint* m_vps[LPN];
+
 	MVPNode<BF,PL,LC,LPN,FO,NS>* m_childnodes[FO];
 	double m_splits[LPN][NS];
 
-	void SelectVantagePoints(vector<DataPoint*> &points);
+	void SelectVantagePoints(vector<DataPoint<PL>*> &points);
 	
 	void CalcSplitPoints(const vector<double> &dists, int n, int split_index);
 
-	vector<double> CalcPointDistances(DataPoint &vp, vector<DataPoint*> &points);
+	vector<double> CalcPointDistances(DataPoint<PL> &vp, vector<DataPoint<PL>*> &points);
 
-	vector<DataPoint*>* CullPoints(vector<DataPoint*> &list, vector<double> &dists,
+	vector<DataPoint<PL>*>* CullPoints(vector<DataPoint<PL>*> &list, vector<double> &dists,
 								  double split, bool less);
 		
-	void CollatePoints(vector<DataPoint*> &points,
-					   map<int, vector<DataPoint*>*> &childpoints,
+	void CollatePoints(vector<DataPoint<PL>*> &points,
+					   map<int, vector<DataPoint<PL>*>*> &childpoints,
 					   const int level, const int index);
 	
 public:
 	MVPInternal();
 	~MVPInternal(){};
-	MVPNode<BF,PL,LC,LPN,FO,NS>* AddDataPoints(vector<DataPoint*> &points,
-						   map<int,vector<DataPoint*>*> &childpoints,
+	MVPNode<BF,PL,LC,LPN,FO,NS>* AddDataPoints(vector<DataPoint<PL>*> &points,
+						   map<int,vector<DataPoint<PL>*>*> &childpoints,
 						   const int level, const int index);
 
 	const int GetCount()const;
@@ -81,39 +94,44 @@ public:
 
 	MVPNode<BF,PL,LC,LPN,FO,NS>* GetChildNode(const int n)const;
 
-	const vector<DataPoint*> GetVantagePoints()const;
+	const vector<DataPoint<PL>*> GetVantagePoints()const;
 	
-	const vector<DataPoint*> GetDataPoints()const;
+	const vector<DataPoint<PL>*> GetDataPoints()const;
 
-	const vector<DataPoint*> FilterDataPoints(const DataPoint *target, const double radius)const;
+	void FilterDataPoints(const DataPoint<PL> &target,
+												  vector<double> &tpath,
+												  const double radius,
+												  const int level,
+												  vector<DataPoint<PL>*> &results)const;
 
-	void TraverseNode(const DataPoint &target,const double radius,
-							  map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes,
-							  const int index,
-							  vector<DataPoint*> &results)const;
+	void TraverseNode(const DataPoint<PL> &target,const double radius,
+					  map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes,
+					  vector<double> *tpath,
+					  map<int, vector<double>*> &child_tdistances,
+					  const int index,
+					  const int level,
+					  vector<DataPoint<PL>*> &results)const;
 
-	const vector<DataPoint*> PurgeDataPoints();
+	const vector<DataPoint<PL>*> PurgeDataPoints();
 };
 
 template<int BF=2,int PL=8,int LC=30,int LPN=2, int FO=4, int NS=2>
 class MVPLeaf : public MVPNode<BF,PL,LC,LPN,FO,NS> {
 private:
-	int m_nvps;
-	DataPoint* m_vps[PL];
-	double m_pdists[PL][LC];
 
+	double m_pdists[LPN][LC];
 	int m_npoints;
-    DataPoint* m_points[LC];
+    DataPoint<PL>* m_points[LC];
 
-	void SelectVantagePoints(vector<DataPoint*> &points);
+	void SelectVantagePoints(vector<DataPoint<PL>*> &points);
 
-	void MarkLeafDistances(vector<DataPoint*> &points);
+	void MarkLeafDistances(vector<DataPoint<PL>*> &points);
 	
 public:
 	MVPLeaf();
 	~MVPLeaf(){};
-	MVPNode<BF,PL,LC,LPN,FO,NS>* AddDataPoints(vector<DataPoint*> &points,
-						   map<int,vector<DataPoint*>*> &childpoints,
+	MVPNode<BF,PL,LC,LPN,FO,NS>* AddDataPoints(vector<DataPoint<PL>*> &points,
+						   map<int,vector<DataPoint<PL>*>*> &childpoints,
 						   const int level, const int index);
 
 	const int GetCount()const;
@@ -122,18 +140,25 @@ public:
 
 	MVPNode<BF,PL,LC,LPN,FO,NS>* GetChildNode(const int n)const;
 
-	const vector<DataPoint*> GetVantagePoints()const;
+	const vector<DataPoint<PL>*> GetVantagePoints()const;
 
-	const vector<DataPoint*> GetDataPoints()const;
+	const vector<DataPoint<PL>*> GetDataPoints()const;
 
-	const vector<DataPoint*> FilterDataPoints(const DataPoint *target, const double radius)const;
+	void FilterDataPoints(const DataPoint<PL> &target,
+												  vector<double> &tpath,
+												  const double radius,
+												  const int level,
+												  vector<DataPoint<PL>*> &results)const;
 
-	void TraverseNode(const DataPoint &target,const double radius,
+	void TraverseNode(const DataPoint<PL> &target,const double radius,
 					  map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes,
-					  const int index,
-					  vector<DataPoint*> &results)const;
+					  vector<double> *tpath,
+					  map<int, vector<double>*> &child_tdistances,
+ 					  const int index,
+					  const int level,
+					  vector<DataPoint<PL>*> &results)const;
 
-	const vector<DataPoint*> PurgeDataPoints();
+	const vector<DataPoint<PL>*> PurgeDataPoints();
 };
 
 
@@ -150,8 +175,8 @@ bool CompareDistance(const double a, const double b, const bool less){
 /********** MVPNode methods *********************/
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-MVPNode<BF,PL,LC,LPN,FO,NS>* MVPNode<BF,PL,LC,LPN,FO,NS>::CreateNode(vector<DataPoint*> &points,
-							 map<int, vector<DataPoint*>*> &childpoints,
+MVPNode<BF,PL,LC,LPN,FO,NS>* MVPNode<BF,PL,LC,LPN,FO,NS>::CreateNode(vector<DataPoint<PL>*> &points,
+							 map<int, vector<DataPoint<PL>*>*> &childpoints,
 							 int level, int index){
 	MVPNode<BF,PL,LC,LPN,FO,NS> *node = NULL;
 	if (points.size() <= LC + PL){
@@ -165,10 +190,21 @@ MVPNode<BF,PL,LC,LPN,FO,NS>* MVPNode<BF,PL,LC,LPN,FO,NS>::CreateNode(vector<Data
 	return node;
 }
 
+template<int BF, int PL, int LC, int LPN, int FO, int NS>
+void MVPNode<BF,PL,LC,LPN,FO,NS>::MarkPointDistances(vector<DataPoint<PL>*> &points, const int level){
+	for (int i=0;i < this->m_nvps;i++){
+		if (level + i < PL){
+			for (DataPoint<PL> *pnt : points){
+				double d = pnt->distance(m_vps[i]);
+				pnt->SetPath(d, level+i);
+			}
+		}
+	}
+}
+
 /********** MVPInternal methods *******************/
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
 MVPInternal<BF,PL,LC,LPN,FO,NS>::MVPInternal(){
-	m_nvps = 0;
 	for (int i=0;i < FO;i++) m_childnodes[i] = NULL;
 	for (int i=0;i < LPN;i++){
 		for (int j=0;j < NS;j++){
@@ -178,9 +214,9 @@ MVPInternal<BF,PL,LC,LPN,FO,NS>::MVPInternal(){
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-void MVPInternal<BF,PL,LC,LPN,FO,NS>::SelectVantagePoints(vector<DataPoint*> &points){
-	while (m_nvps < LPN && points.size() > 0){
-		m_vps[m_nvps++] = points.back();
+void MVPInternal<BF,PL,LC,LPN,FO,NS>::SelectVantagePoints(vector<DataPoint<PL>*> &points){
+	while (this->m_nvps < LPN && points.size() > 0){
+		this->m_vps[this->m_nvps++] = points.back();
 		points.pop_back();
 	}
 }
@@ -204,21 +240,21 @@ void MVPInternal<BF,PL,LC,LPN,FO,NS>::CalcSplitPoints(const vector<double> &dist
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-vector<double> MVPInternal<BF,PL,LC,LPN,FO,NS>::CalcPointDistances(DataPoint &vp, vector<DataPoint*> &points){
+vector<double> MVPInternal<BF,PL,LC,LPN,FO,NS>::CalcPointDistances(DataPoint<PL> &vp, vector<DataPoint<PL>*> &points){
 	vector<double> results;
-	for (DataPoint *dp : points){
+	for (DataPoint<PL> *dp : points){
 		results.push_back(vp.distance(dp));
 	}
 	return results;
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-vector<DataPoint*>* MVPInternal<BF,PL,LC,LPN,FO,NS>::CullPoints(vector<DataPoint*> &list, vector<double> &dists,
+vector<DataPoint<PL>*>* MVPInternal<BF,PL,LC,LPN,FO,NS>::CullPoints(vector<DataPoint<PL>*> &list, vector<double> &dists,
 							  double split, bool less){
-	vector<DataPoint*> *results = new vector<DataPoint*>();
+	vector<DataPoint<PL>*> *results = new vector<DataPoint<PL>*>();
 
-	vector<DataPoint*>::iterator list_iter = list.begin();
-	vector<double>::iterator dist_iter = dists.begin(); 
+	auto list_iter = list.begin();
+	auto dist_iter = dists.begin(); 
 	while (list_iter != list.end() && dist_iter != dists.end()){
 		if (CompareDistance(*dist_iter,split,less)){
 			results->push_back(*list_iter);
@@ -237,10 +273,10 @@ vector<DataPoint*>* MVPInternal<BF,PL,LC,LPN,FO,NS>::CullPoints(vector<DataPoint
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-void MVPInternal<BF,PL,LC,LPN,FO,NS>::CollatePoints(vector<DataPoint*> &points,
-								map<int, vector<DataPoint*>*> &childpoints,
+void MVPInternal<BF,PL,LC,LPN,FO,NS>::CollatePoints(vector<DataPoint<PL>*> &points,
+								map<int, vector<DataPoint<PL>*>*> &childpoints,
 								const int level, const int index){
-	map<int, vector<DataPoint*>*> pnts, pnts2;
+	map<int, vector<DataPoint<PL>*>*> pnts, pnts2;
 	pnts[0] = &points;
 
 	int lengthM = BF - 1;
@@ -248,16 +284,16 @@ void MVPInternal<BF,PL,LC,LPN,FO,NS>::CollatePoints(vector<DataPoint*> &points,
 	do {
 		for (auto iter=pnts.begin();iter!=pnts.end();iter++){
 			int node_index = iter->first;
-			vector<DataPoint*> *list = iter->second;
+			vector<DataPoint<PL>*> *list = iter->second;
 
 			//int list_size = list->size();
 
-			vector<double> dists = CalcPointDistances(*m_vps[n], *list);
+			vector<double> dists = CalcPointDistances(*(this->m_vps[n]), *list);
 			if (dists.size() > 0){
 				CalcSplitPoints(dists, n, node_index);
 
 				double m;
-				vector<DataPoint*> *culledpts = NULL;
+				vector<DataPoint<PL>*> *culledpts = NULL;
 				for (int j=0;j<lengthM;j++){
 					m = m_splits[n][node_index*lengthM+j];
 
@@ -283,7 +319,7 @@ void MVPInternal<BF,PL,LC,LPN,FO,NS>::CollatePoints(vector<DataPoint*> &points,
 
 	for (auto iter=pnts.begin();iter!=pnts.end();iter++){
 		int i=iter->first;
-		vector<DataPoint*> *list = iter->second;
+		vector<DataPoint<PL>*> *list = iter->second;
 		if (list != NULL)
 			childpoints[index*FO+i] = list;  
 	}
@@ -291,11 +327,12 @@ void MVPInternal<BF,PL,LC,LPN,FO,NS>::CollatePoints(vector<DataPoint*> &points,
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-MVPNode<BF,PL,LC,LPN,FO,NS>* MVPInternal<BF,PL,LC,LPN,FO,NS>::AddDataPoints(vector<DataPoint*> &points,
-									map<int,vector<DataPoint*>*> &childpoints,
+MVPNode<BF,PL,LC,LPN,FO,NS>* MVPInternal<BF,PL,LC,LPN,FO,NS>::AddDataPoints(vector<DataPoint<PL>*> &points,
+									map<int,vector<DataPoint<PL>*>*> &childpoints,
 									const int level, const int index){
 	SelectVantagePoints(points);
-	if (m_nvps < LPN) throw invalid_argument("too few points for internal node");
+	this->MarkPointDistances(points, level);
+	if (this->m_nvps < LPN) throw invalid_argument("too few points for internal node");
 	CollatePoints(points, childpoints, level, index);
 	points.clear();
 	return this;
@@ -319,44 +356,59 @@ MVPNode<BF,PL,LC,LPN,FO,NS>* MVPInternal<BF,PL,LC,LPN,FO,NS>::GetChildNode(const
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-const vector<DataPoint*> MVPInternal<BF,PL,LC,LPN,FO,NS>::GetVantagePoints()const{
-	vector<DataPoint*> results;
-	for (int i=0;i<m_nvps;i++) results.push_back(m_vps[i]);
+const vector<DataPoint<PL>*> MVPInternal<BF,PL,LC,LPN,FO,NS>::GetVantagePoints()const{
+	vector<DataPoint<PL>*> results;
+	for (int i=0;i < this->m_nvps;i++) results.push_back(this->m_vps[i]);
 	return results;
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-const vector<DataPoint*> MVPInternal<BF,PL,LC,LPN,FO,NS>::GetDataPoints()const{
-	vector<DataPoint*> results;
+const vector<DataPoint<PL>*> MVPInternal<BF,PL,LC,LPN,FO,NS>::GetDataPoints()const{
+	vector<DataPoint<PL>*> results;
 	return results;
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-const vector<DataPoint*> MVPInternal<BF,PL,LC,LPN,FO,NS>::FilterDataPoints(const DataPoint *target, const double radius)const{
-	vector<DataPoint*> results;
-	for (int i=0;i<m_nvps;i++){
-		if (m_vps[i]->IsActive() && target->distance(m_vps[i]) <= radius)
-			results.push_back(m_vps[i]);
+void MVPInternal<BF,PL,LC,LPN,FO,NS>::FilterDataPoints(const DataPoint<PL> &target,
+													   vector<double> &tpath,
+													   const double radius,
+													   const int level,
+													   vector<DataPoint<PL>*> &results)const{
+	for (int i=0;i < this->m_nvps;i++){
+		double d = target.distance(this->m_vps[i]);
+		tpath.push_back(d);
+		if (this->m_vps[i]->IsActive() && d <= radius)
+			results.push_back(this->m_vps[i]);
 	}
-	return results;
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-void MVPInternal<BF,PL,LC,LPN,FO,NS>::TraverseNode(const DataPoint &target, const double radius, map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes,
-							   const int index, vector<DataPoint*> &results)const{
+void MVPInternal<BF,PL,LC,LPN,FO,NS>::TraverseNode(const DataPoint<PL> &target, const double radius,
+												   map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes,
+												   vector<double> *tpath,
+												   map<int, vector<double>*> &child_tdistances,
+												   const int index,
+												   const int level,
+												   vector<DataPoint<PL>*> &results)const{
 	int lengthM = BF - 1;
 	int n = 0;
 	bool *currnodes  = new bool[1];
 	currnodes[0] = true;
+
+
+	vector<double> *path = (tpath != NULL) ? tpath : new vector<double>();
+
+	FilterDataPoints(target, *path, radius, level, results);
+	
 	do {
 		int n_nodes = pow(BF, n);
 		int n_childnodes = pow(BF, n+1);
 		bool *nextnodes = new bool[n_childnodes];
-		for (int i=0;i<n_childnodes;i++) nextnodes[i] = false;
-		
-		double d = target.distance(m_vps[n]);
-		if (m_vps[n]->IsActive() && d <= radius)
-			results.push_back(m_vps[n]);
+
+		for (int i=0;i<n_childnodes;i++)
+			nextnodes[i] = false;
+
+		double d = path->at(level+n);
 
 		//int lengthMn = lengthM*n_nodes;
 		for (int node_index=0;node_index<n_nodes;node_index++){
@@ -380,23 +432,32 @@ void MVPInternal<BF,PL,LC,LPN,FO,NS>::TraverseNode(const DataPoint &target, cons
 	for (int i=0;i < FO;i++){
 		if (currnodes[i]){
 			MVPNode<BF,PL,LC,LPN,FO,NS> *child = GetChildNode(i);
-			if (child != NULL)
+			if (child != NULL) {
 				childnodes[index*FO+i] = child;
+
+				vector<double> *tmppath = new vector<double>();
+				for (int j=0;j < (int)path->size();j++){
+					tmppath->push_back(path->at(j));
+				}
+
+				child_tdistances[index*FO+i] = tmppath;
+			}
 		}
+	   
 	}
 
 	delete[] currnodes;
-
+	delete path;
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-const vector<DataPoint*> MVPInternal<BF,PL,LC,LPN,FO,NS>::PurgeDataPoints(){
-	vector<DataPoint*> results;
-	for (int i=0;i<m_nvps;i++){
-		if (!(m_vps[i]->IsActive()))
-			delete m_vps[i];
+const vector<DataPoint<PL>*> MVPInternal<BF,PL,LC,LPN,FO,NS>::PurgeDataPoints(){
+	vector<DataPoint<PL>*> results;
+	for (int i=0;i < this->m_nvps;i++){
+		if (!(this->m_vps[i]->IsActive()))
+			delete this->m_vps[i];
 		else
-			results.push_back(m_vps[i]);
+			results.push_back(this->m_vps[i]);
 	}
 	
 	return results;
@@ -406,61 +467,63 @@ const vector<DataPoint*> MVPInternal<BF,PL,LC,LPN,FO,NS>::PurgeDataPoints(){
 /********* MVPLeaf methods **********************/
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-MVPLeaf<BF,PL,LC,LPN,FO,NS>::MVPLeaf(){
-	m_npoints = m_nvps = 0;
-	for (int i=0;i<PL;i++)
+MVPLeaf<BF,PL,LC,LPN,FO,NS>::MVPLeaf():m_npoints(0){
+	for (int i=0;i < LPN;i++)
 		for (int j=0;j<LC;j++)
 			m_pdists[i][j] = -1.0;
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-void MVPLeaf<BF,PL,LC,LPN,FO,NS>::SelectVantagePoints(vector<DataPoint*> &points){
-	while (m_nvps < PL && points.size() > 0){
-		m_vps[m_nvps++] = points.back();
+void MVPLeaf<BF,PL,LC,LPN,FO,NS>::SelectVantagePoints(vector<DataPoint<PL>*> &points){
+	while (this->m_nvps < LPN && points.size() > 0){
+		this->m_vps[this->m_nvps++] = points.back();
 		points.pop_back();
 	}
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-void MVPLeaf<BF,PL,LC,LPN,FO,NS>::MarkLeafDistances(vector<DataPoint*> &points){
+void MVPLeaf<BF,PL,LC,LPN,FO,NS>::MarkLeafDistances(vector<DataPoint<PL>*> &points){
 	if (m_npoints + points.size() > LC)
 		throw invalid_argument("no. points exceed leaf capacity");
 	
-	for (int m = 0; m < m_nvps;m++){
+	for (int m = 0; m < this->m_nvps;m++){
 		int index = m_npoints;
-		for (DataPoint *dp : points){
-			m_pdists[m][index++] = m_vps[m]->distance(dp);  
+		for (DataPoint<PL> *dp : points){
+			m_pdists[m][index++] = this->m_vps[m]->distance(dp);  
 		}
 	}
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-MVPNode<BF,PL,LC,LPN,FO,NS>* MVPLeaf<BF,PL,LC,LPN,FO,NS>::AddDataPoints(vector<DataPoint*> &points,
-								map<int,vector<DataPoint*>*> &childpoints,
+MVPNode<BF,PL,LC,LPN,FO,NS>* MVPLeaf<BF,PL,LC,LPN,FO,NS>::AddDataPoints(vector<DataPoint<PL>*> &points,
+								map<int,vector<DataPoint<PL>*>*> &childpoints,
 								const int level, const int index){
 	SelectVantagePoints(points);
 	MVPNode<BF,PL,LC,LPN,FO,NS> *retnode = this;
 	if (m_npoints + points.size() <= LC){ 
 		// add points to existing leaf
-		MarkLeafDistances(points);
-		for (DataPoint *dp : points){
+		if (level < PL) MarkLeafDistances(points);
+		this->MarkPointDistances(points, level);
+		for (DataPoint<PL> *dp : points){
 			m_points[m_npoints++] = dp;
 		}
 		points.clear();
 	} else {  // create new internal node 
 
 		// get existing points, purge inactive poins
-		vector<DataPoint*> pts = PurgeDataPoints();
+		vector<DataPoint<PL>*> pts = PurgeDataPoints();
 
 		// merge points
-		for (DataPoint *dp : pts) points.push_back(dp);
+		for (DataPoint<PL> *dp : pts) points.push_back(dp);
 
-		if (points.size() <= LC + PL){
+		if (points.size() <= LPN + LC){
 			// clear out points
-			m_npoints = m_nvps = 0;
+			this->m_npoints = 0;
+			this->m_nvps = 0;
 			SelectVantagePoints(points);
 			MarkLeafDistances(points);
-			for (DataPoint *dp : points){
+			this->MarkPointDistances(points, level);
+			for (DataPoint<PL> *dp : points){
 				m_points[m_npoints++] = dp;
 			}
 			points.clear();
@@ -486,67 +549,87 @@ template<int BF,int PL,int LC,int LPN,int FO,int NS>
 MVPNode<BF,PL,LC,LPN,FO,NS>* MVPLeaf<BF,PL,LC,LPN,FO,NS>::GetChildNode(const int n)const{return NULL;}
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-const vector<DataPoint*> MVPLeaf<BF,PL,LC,LPN,FO,NS>::GetVantagePoints()const{
-	vector<DataPoint*> results;
-	for (int i=0;i<m_nvps;i++) results.push_back(m_vps[i]);
+const vector<DataPoint<PL>*> MVPLeaf<BF,PL,LC,LPN,FO,NS>::GetVantagePoints()const{
+	vector<DataPoint<PL>*> results;
+	for (int i=0;i < this->m_nvps;i++) results.push_back(this->m_vps[i]);
 	return results;
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-const vector<DataPoint*> MVPLeaf<BF,PL,LC,LPN,FO,NS>::GetDataPoints()const{
-	vector<DataPoint*> results;
+const vector<DataPoint<PL>*> MVPLeaf<BF,PL,LC,LPN,FO,NS>::GetDataPoints()const{
+	vector<DataPoint<PL>*> results;
 	for (int i=0;i<m_npoints;i++) results.push_back(m_points[i]);
 	return results;
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-const vector<DataPoint*> MVPLeaf<BF,PL,LC,LPN,FO,NS>::FilterDataPoints(const DataPoint *target, const double radius)const{
-	vector<DataPoint*> results;
-
-	double qdists[PL];
-	for (int i=0;i<m_nvps;i++){
-		qdists[i] = m_vps[i]->distance(target);
-		if (m_vps[i]->IsActive() && qdists[i] <= radius)
-			results.push_back(m_vps[i]);
+void MVPLeaf<BF,PL,LC,LPN,FO,NS>::FilterDataPoints(const DataPoint<PL> &target,
+												   vector<double> &tpath,
+												   const double radius,
+												   const int level,
+												   vector<DataPoint<PL>*> &results)const{
+	for (int i=0;i < this->m_nvps;i++){
+		double d = target.distance(this->m_vps[i]);
+		tpath.push_back(d);
+		if (this->m_vps[i]->IsActive() && d <= radius)
+			results.push_back(this->m_vps[i]);
 	}
-	
-	for (int j=0;j < (int)m_npoints;j++){
+
+	int pathlimit = (tpath.size() <= PL) ? tpath.size() : PL;
+   	for (int index=0;index < (int)m_npoints;index++){
 		bool skip = false;
-		if (!(m_points[j]->IsActive())) continue;
-		
-		for (int i=0;i<m_nvps;i++){
-			if (!(m_pdists[i][j] >= qdists[i] - radius) && (m_pdists[i][j] <= qdists[i] + radius)){
+
+		DataPoint<PL> *dp = m_points[index];
+		// filter using precomputed path distances from vantage points down tree to current node
+		for (int i=0;i < pathlimit;i++){
+			if (!(dp->GetPath(i) >= tpath[i] - radius && dp->GetPath(i) <= tpath[i] + radius)){
 				skip = true;
 				break;
 			}
 		}
+
 		if (!skip){
-			if (m_points[j]->distance(target) <= radius){
-				results.push_back(m_points[j]);
+			// filter using precomputed distances in node
+			for (int i=0;i < this->m_nvps;i++){
+				if (!(m_pdists[i][index] >=  tpath[level+i] - radius) && (m_pdists[i][index] <= tpath[level+i] + radius)){
+					skip = true;
+					break;
+				}
+			}
+		}
+
+		if (!skip){
+			// still not ruled out
+			if (dp->IsActive() && target.distance(dp) <= radius){
+				results.push_back(dp);
 			}
 		}
 	}
-	
-	return results;
 }
 
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-void MVPLeaf<BF,PL,LC,LPN,FO,NS>::TraverseNode(const DataPoint &target, const double radius,
-						   map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes,
-						   const int index, vector<DataPoint*> &results)const{
-	vector<DataPoint*> fnd = FilterDataPoints(&target, radius);
-	for (DataPoint* dp : fnd) results.push_back(dp);
+void MVPLeaf<BF,PL,LC,LPN,FO,NS>::TraverseNode(const DataPoint<PL> &target, const double radius,
+											   map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes,
+											   vector<double> *tpath,
+											   map<int, vector<double>*> &child_tdistances,
+											   const int index,
+											   const int level,
+											   vector<DataPoint<PL>*> &results)const{
+
+	vector<double> *path = (tpath) ? tpath : new vector<double>();
+	FilterDataPoints(target, *path, radius, level, results);
+	delete path;
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-const vector<DataPoint*> MVPLeaf<BF,PL,LC,LPN,FO,NS>::PurgeDataPoints(){
-	vector<DataPoint*> results;
-	for (int i=0;i<m_nvps;i++){
-		if (!(m_vps[i]->IsActive()))
-			delete m_vps[i];
+const vector<DataPoint<PL>*> MVPLeaf<BF,PL,LC,LPN,FO,NS>::PurgeDataPoints(){
+	vector<DataPoint<PL>*> results;
+	for (int i=0;i < this->m_nvps;i++){
+		if (!(this->m_vps[i]->IsActive()))
+			delete this->m_vps[i];
 		else
-			results.push_back(m_vps[i]);
+			results.push_back(this->m_vps[i]);
 	}
 	for (int i=0;i<m_npoints;i++){
 		if (!(m_points[i]->IsActive()))

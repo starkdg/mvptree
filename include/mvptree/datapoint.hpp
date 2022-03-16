@@ -1,12 +1,16 @@
 #ifndef _DATAPOINT_H
 #define _DATAPOINT_H
 
+#include <cstring>
+#include <stdexcept>
 #include <cmath>
 
 using namespace std;
 
+template<int PL=8>
 class DataPoint {
 protected:
+	double dists[PL];
 	long long id;
 	bool active;
 public:
@@ -15,16 +19,18 @@ public:
 	
 	DataPoint(const long long id):id(id),active(true){}
 
-	DataPoint(const DataPoint &other){
+	DataPoint(const DataPoint<PL> &other){
 		id = other.id;
 		active = other.active;
+		memcpy(dists, other.dists, PL*sizeof(double));
 	}
 	
 	virtual ~DataPoint(){}
 	
-	DataPoint& operator=(const DataPoint &other){
+	DataPoint<PL>& operator=(const DataPoint<PL> &other){
 		id = other.id;
 		active = other.active;
+		memcpy(dists, other.dists, PL*sizeof(double));
 		return *this;
 	}
 
@@ -40,6 +46,16 @@ public:
 		return id;
 	}
 
+	const double GetPath(const int n)const{
+		if (n < 0 || n >= PL) throw out_of_range("index out of range");
+		return dists[n];
+	}
+
+	void SetPath(const double val, const int n){
+		if (n < 0 || n >= PL) throw out_of_range("index out of range");
+		dists[n] = val;
+	}
+	
 	static void ResetCount(){
 		DataPoint::n_ops = 0;
 	}
@@ -48,24 +64,25 @@ public:
 		return DataPoint::n_ops;
 	}
 	
-	virtual const double distance(const DataPoint *other)const = 0;
+	virtual const double distance(const DataPoint<PL> *other)const = 0;
 	
 };
 
-int DataPoint::n_ops = 0;
-
-class DblDataPoint : public DataPoint {
+template<int PL=8>
+class DblDataPoint : public DataPoint<PL> {
 protected:
 	double value;
 public:
-	DblDataPoint(const long long id, const double value):DataPoint(id),value(value){}
-	DblDataPoint(const DblDataPoint &other):DataPoint(other){
+	DblDataPoint(const long long id, const double value):DataPoint<PL>(id),value(value){
+		this->value = value;
+	}
+	DblDataPoint(const DblDataPoint &other):DataPoint<PL>(other){
 		value = other.value;
 	}
 	~DblDataPoint(){}
 	
 	DblDataPoint& operator=(const DblDataPoint &other){
-		DataPoint::operator=(other);
+		DataPoint<PL>::operator=(other);
 		value = other.value;
 		return *this;
 	}
@@ -75,39 +92,43 @@ public:
 		return value;
 	}
 
-	const double distance(const DataPoint *other)const override{
-		DataPoint::n_ops++;
+	const double distance(const DataPoint<PL> *other)const override{
+		DataPoint<PL>::n_ops++;
 		DblDataPoint *pnt = (DblDataPoint*)other;
 		return abs(this->value - pnt->value);
 	}
 };
 
-
-class H64DataPoint : public DataPoint {
+template<int PL=8>
+class H64DataPoint : public DataPoint<PL> {
 protected:
 	uint64_t value;
 public:
-	H64DataPoint(const long long id, const uint64_t value):DataPoint(id),value(value){}
-	H64DataPoint(const H64DataPoint &other):DataPoint(other){
+	H64DataPoint(const long long id, const uint64_t value):DataPoint<PL>(id),value(value){}
+	H64DataPoint(const H64DataPoint &other):DataPoint<PL>(other){
 		value = other.value;
 	}
 	~H64DataPoint(){}
 	H64DataPoint& operator=(const H64DataPoint &other){
-		DataPoint::operator=(other);
+		DataPoint<PL>::operator=(other);
 		value = other.value;
 		return *this;
 	}
 
-	const uint64_t GetValue(){
+	const uint64_t GetValue()const{
 		return value;
 	}
 
-	const double distance(const DataPoint *other)const override{
-		DataPoint::n_ops++;
+	const double distance(const DataPoint<PL> *other)const override{
+		DataPoint<PL>::n_ops++;
 		H64DataPoint *pnt = (H64DataPoint*)other;
 		uint64_t tmp = pnt->GetValue();
 		return __builtin_popcountll(value^tmp);
 	}
 };
+
+
+template<int PL>
+int DataPoint<PL>::n_ops = 0;
 
 #endif

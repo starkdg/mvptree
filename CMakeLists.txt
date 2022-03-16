@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.13)
 project(mvptree VERSION 0.1.0.0
   DESCRIPTION "distance-based multiple vantage point tree data structure")
 
-set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Debug)
 
 add_library(mvptree INTERFACE)
 target_include_directories(mvptree INTERFACE include/)

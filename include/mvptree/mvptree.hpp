@@ -33,9 +33,9 @@ class MVPLeaf;
 template<int BF=2, int PL=8, int LC=30, int LPN=2, int FO=4, int NS=2>
 class MVPTree {
 private:
-	vector<DataPoint*> m_arrivals;
+	vector<DataPoint<PL>*> m_arrivals;
 	
-	map<long long, DataPoint*> m_ids;
+	map<long long, DataPoint<PL>*> m_ids;
 	
 	MVPNode<BF,PL,LC,LPN,FO,NS> *m_top;
 
@@ -47,17 +47,17 @@ private:
 					map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes, const int index)const;
 	MVPNode<BF,PL,LC,LPN,FO,NS>* ProcessNode(const int level,
 											 const int index,
-											 MVPNode<BF,PL,LC,LPN,FO,NS> *node, vector<DataPoint*> &points,
+											 MVPNode<BF,PL,LC,LPN,FO,NS> *node, vector<DataPoint<PL>*> &points,
 											 map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes,
-											 map<int, vector<DataPoint*>*> &childpoints);
+											 map<int, vector<DataPoint<PL>*>*> &childpoints);
 public:
 	MVPTree():m_top(NULL),n_internal(0),n_leaf(0),n_sync(100){};
 
-	const DataPoint* Lookup(const long long id);
+	const DataPoint<PL>* Lookup(const long long id);
 	
-	void Add(DataPoint *dp);
+	void Add(DataPoint<PL> *dp);
 	
-	void Add(vector<DataPoint*> &points);
+	void Add(vector<DataPoint<PL>*> &points);
 
 	void Sync();
 	
@@ -69,7 +69,7 @@ public:
 	
 	void Clear();
 
-	const vector<DataPoint*> Query(const DataPoint &target, const double radius) const;
+	const vector<DataPoint<PL>*> Query(const DataPoint<PL> &target, const double radius) const;
 
 	size_t MemoryUsage()const;
 
@@ -113,9 +113,9 @@ void MVPTree<BF,PL,LC,LPN,FO,NS>::ExpandNode(MVPNode<BF,PL,LC,LPN,FO,NS> *node,
 template<int BF,int PL, int LC, int LPN, int FO, int NS>
 MVPNode<BF,PL,LC,LPN,FO,NS>* MVPTree<BF,PL,LC,LPN,FO,NS>::ProcessNode(const int level, const int index,
 							  MVPNode<BF,PL,LC,LPN,FO,NS> *node,
-							  vector<DataPoint*> &points,
+							  vector<DataPoint<PL>*> &points,
 							  map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> &childnodes,
-							  map<int, vector<DataPoint*>*> &childpoints){
+							  map<int, vector<DataPoint<PL>*>*> &childpoints){
 	MVPNode<BF,PL,LC,LPN,FO,NS> *retnode = node;
 	if (node == NULL){ // create new node
 		retnode = MVPNode<BF,PL,LC,LPN,FO,NS>::CreateNode(points, childpoints, level, index);
@@ -130,7 +130,7 @@ MVPNode<BF,PL,LC,LPN,FO,NS>* MVPTree<BF,PL,LC,LPN,FO,NS>::ProcessNode(const int 
 }
 
 template<int BF,int PL, int LC, int LPN, int FO, int NS>
-const DataPoint* MVPTree<BF,PL,LC,LPN,FO,NS>::Lookup(const long long id){
+const DataPoint<PL>* MVPTree<BF,PL,LC,LPN,FO,NS>::Lookup(const long long id){
 	auto iter = m_ids.find(id);
 	if (iter != m_ids.end()){
 		return iter->second;
@@ -139,7 +139,7 @@ const DataPoint* MVPTree<BF,PL,LC,LPN,FO,NS>::Lookup(const long long id){
 }
 
 template<int BF,int PL, int LC, int LPN, int FO, int NS>
-void MVPTree<BF,PL,LC,LPN,FO,NS>::Add(DataPoint *dp){
+void MVPTree<BF,PL,LC,LPN,FO,NS>::Add(DataPoint<PL> *dp){
 	if (dp != NULL){
 		m_arrivals.push_back(dp);
 		if ((int)m_arrivals.size() >= n_sync) Add(m_arrivals);
@@ -147,22 +147,22 @@ void MVPTree<BF,PL,LC,LPN,FO,NS>::Add(DataPoint *dp){
 }
 
 template<int BF,int PL, int LC, int LPN, int FO, int NS>
-void MVPTree<BF,PL,LC,LPN,FO,NS>::Add(vector<DataPoint*> &points){
+void MVPTree<BF,PL,LC,LPN,FO,NS>::Add(vector<DataPoint<PL>*> &points){
 	if (points.empty()) return;
 
-	for (DataPoint* dp : points) m_ids[dp->GetId()] = dp;
+	for (DataPoint<PL>* dp : points) m_ids[dp->GetId()] = dp;
 
 	map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> prevnodes, currnodes, childnodes;
 	if (m_top != NULL) currnodes[0] = m_top;
 
-	map<int, vector<DataPoint*>*> pnts, pnts2;
+	map<int, vector<DataPoint<PL>*>*> pnts, pnts2;
 	pnts[0] = &points;
 
 	int n = 0;
 	do {
 		for (auto iter=pnts.begin();iter!=pnts.end();iter++){
 			int index = iter->first;
-			vector<DataPoint*> *list = iter->second;
+			vector<DataPoint<PL>*> *list = iter->second;
 			MVPNode<BF,PL,LC,LPN,FO,NS> *mvpnode = currnodes[index];
 			MVPNode<BF,PL,LC,LPN,FO,NS> *newnode = ProcessNode(n, index, mvpnode, *list, childnodes, pnts2);
 			if (newnode != mvpnode){
@@ -217,7 +217,8 @@ const int MVPTree<BF,PL,LC,LPN,FO,NS>::Size()const{
 
 template<int BF,int PL, int LC, int LPN, int FO, int NS>
 void MVPTree<BF,PL,LC,LPN,FO,NS>::CountNodes(int &n_internal, int &n_leaf)const{
-	n_internal = n_leaf = 0;
+	n_internal = 0;
+	n_leaf = 0;
 
 	queue<MVPNode<BF,PL,LC,LPN,FO,NS>*> nodes;
 	if (m_top != NULL) nodes.push(m_top);
@@ -254,8 +255,8 @@ void MVPTree<BF,PL,LC,LPN,FO,NS>::Clear(){
 			MVPNode<BF,PL,LC,LPN,FO,NS> *mvpnode = iter->second;
 
 			if (mvpnode != NULL){
-				vector<DataPoint*> pts = mvpnode->PurgeDataPoints();
-				for (DataPoint *dp : pts){
+				vector<DataPoint<PL>*> pts = mvpnode->PurgeDataPoints();
+				for (DataPoint<PL> *dp : pts){
 					delete dp;
 				}
 
@@ -279,25 +280,26 @@ void MVPTree<BF,PL,LC,LPN,FO,NS>::Clear(){
 }
 
 template<int BF,int PL, int LC, int LPN, int FO, int NS>
-const vector<DataPoint*> MVPTree<BF,PL,LC,LPN,FO,NS>::Query(const DataPoint &target, const double radius) const{
-	vector<DataPoint*> results;
-	
+const vector<DataPoint<PL>*> MVPTree<BF,PL,LC,LPN,FO,NS>::Query(const DataPoint<PL> &target, const double radius) const{
+	vector<DataPoint<PL>*> results;
+	map<int, vector<double>*> tdistances, tdistances2;
 	map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
 	if (m_top != NULL) currnodes[0] = m_top;
-
+	
 	int n = 0;
 	do {
 		int n_nodes = pow(BF, n);
 		int n_childnodes = pow(BF, n+LPN);
 		
-		for (auto iter=currnodes.begin();iter!=currnodes.end();iter++){
-			int node_index = iter->first;
-			MVPNode<BF,PL,LC,LPN,FO,NS> *mvpnode = iter->second;
-			if (mvpnode != NULL){
-				mvpnode->TraverseNode(target, radius, childnodes, node_index, results);
-			}
+		for (auto const &iter : currnodes){
+			int node_index = iter.first;
+			MVPNode<BF,PL,LC,LPN,FO,NS> *mvpnode = iter.second;
+			vector<double> *tpath = tdistances[node_index];
+			if (mvpnode)
+				mvpnode->TraverseNode(target, radius, childnodes,  tpath, tdistances2, node_index, n, results);
 		}
 		currnodes = move(childnodes);
+		tdistances = move(tdistances2);
 		n += LPN;
 	} while (!currnodes.empty());
 
@@ -325,7 +327,7 @@ size_t MVPTree<BF,PL,LC,LPN,FO,NS>::MemoryUsage()const{
 		currnodes = move(childnodes);
 	} while (!currnodes.empty());
 	
-	return  n_points*sizeof(DataPoint) + n_internal*sizeof(MVPInternal<BF,PL,LC,LPN,FO,NS>)
+	return  n_points*sizeof(DataPoint<PL>) + n_internal*sizeof(MVPInternal<BF,PL,LC,LPN,FO,NS>)
 		+ n_leaf*sizeof(MVPLeaf<BF,PL,LC,LPN,FO,NS>) + sizeof(MVPLeaf<BF,PL,LC,LPN,FO,NS>);
 }
 
