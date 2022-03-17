@@ -24,8 +24,8 @@ static uniform_int_distribution<uint64_t> m_distrib(0);
 static const int n_centers = 10;
 
 const int bf = 2;   //branchfactor
-const int pl = 8;   // pathlength
-const int lc = 80; // leafcap
+const int pl = 2;   // pathlength
+const int lc = 2000; // leafcap
 const int lpn = 2;  // levelspernode
 const int fo = 4; //fanout bf^lpn
 const int ns = 2; //numsplits bf^(lpn-1)

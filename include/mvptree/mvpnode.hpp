@@ -16,6 +16,8 @@ protected:
 
 	int m_nvps;
 	DataPoint<PL>* m_vps[LPN];
+
+	void SelectVantagePoints(vector<DataPoint<PL>*> &points);
 	
 	void MarkPointDistances(vector<DataPoint<PL>*> &points, const int level);
 
@@ -68,8 +70,6 @@ private:
 	MVPNode<BF,PL,LC,LPN,FO,NS>* m_childnodes[FO];
 	double m_splits[LPN][NS];
 
-	void SelectVantagePoints(vector<DataPoint<PL>*> &points);
-	
 	void CalcSplitPoints(const vector<double> &dists, int n, int split_index);
 
 	vector<double> CalcPointDistances(DataPoint<PL> &vp, vector<DataPoint<PL>*> &points);
@@ -122,8 +122,6 @@ private:
 	double m_pdists[LPN][LC];
 	int m_npoints;
     DataPoint<PL>* m_points[LC];
-
-	void SelectVantagePoints(vector<DataPoint<PL>*> &points);
 
 	void MarkLeafDistances(vector<DataPoint<PL>*> &points);
 	
@@ -190,6 +188,15 @@ MVPNode<BF,PL,LC,LPN,FO,NS>* MVPNode<BF,PL,LC,LPN,FO,NS>::CreateNode(vector<Data
 	return node;
 }
 
+template<int BF,int PL,int LC,int LPN,int FO,int NS>
+void MVPNode<BF,PL,LC,LPN,FO,NS>::SelectVantagePoints(vector<DataPoint<PL>*> &points){
+	while (this->m_nvps < LPN && points.size()){
+		this->m_vps[this->m_nvps++] = points.back();
+		points.pop_back();
+	}
+}
+
+
 template<int BF, int PL, int LC, int LPN, int FO, int NS>
 void MVPNode<BF,PL,LC,LPN,FO,NS>::MarkPointDistances(vector<DataPoint<PL>*> &points, const int level){
 	for (int i=0;i < this->m_nvps;i++){
@@ -210,14 +217,6 @@ MVPInternal<BF,PL,LC,LPN,FO,NS>::MVPInternal(){
 		for (int j=0;j < NS;j++){
 			m_splits[i][j] = -1.0;
 		}
-	}
-}
-
-template<int BF,int PL,int LC,int LPN,int FO,int NS>
-void MVPInternal<BF,PL,LC,LPN,FO,NS>::SelectVantagePoints(vector<DataPoint<PL>*> &points){
-	while (this->m_nvps < LPN && points.size() > 0){
-		this->m_vps[this->m_nvps++] = points.back();
-		points.pop_back();
 	}
 }
 
@@ -330,7 +329,7 @@ template<int BF,int PL,int LC,int LPN,int FO,int NS>
 MVPNode<BF,PL,LC,LPN,FO,NS>* MVPInternal<BF,PL,LC,LPN,FO,NS>::AddDataPoints(vector<DataPoint<PL>*> &points,
 									map<int,vector<DataPoint<PL>*>*> &childpoints,
 									const int level, const int index){
-	SelectVantagePoints(points);
+	this->SelectVantagePoints(points);
 	this->MarkPointDistances(points, level);
 	if (this->m_nvps < LPN) throw invalid_argument("too few points for internal node");
 	CollatePoints(points, childpoints, level, index);
@@ -474,14 +473,6 @@ MVPLeaf<BF,PL,LC,LPN,FO,NS>::MVPLeaf():m_npoints(0){
 }
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
-void MVPLeaf<BF,PL,LC,LPN,FO,NS>::SelectVantagePoints(vector<DataPoint<PL>*> &points){
-	while (this->m_nvps < LPN && points.size() > 0){
-		this->m_vps[this->m_nvps++] = points.back();
-		points.pop_back();
-	}
-}
-
-template<int BF,int PL,int LC,int LPN,int FO,int NS>
 void MVPLeaf<BF,PL,LC,LPN,FO,NS>::MarkLeafDistances(vector<DataPoint<PL>*> &points){
 	if (m_npoints + points.size() > LC)
 		throw invalid_argument("no. points exceed leaf capacity");
@@ -498,7 +489,7 @@ template<int BF,int PL,int LC,int LPN,int FO,int NS>
 MVPNode<BF,PL,LC,LPN,FO,NS>* MVPLeaf<BF,PL,LC,LPN,FO,NS>::AddDataPoints(vector<DataPoint<PL>*> &points,
 								map<int,vector<DataPoint<PL>*>*> &childpoints,
 								const int level, const int index){
-	SelectVantagePoints(points);
+	this->SelectVantagePoints(points);
 	MVPNode<BF,PL,LC,LPN,FO,NS> *retnode = this;
 	if (m_npoints + points.size() <= LC){ 
 		// add points to existing leaf
@@ -520,7 +511,7 @@ MVPNode<BF,PL,LC,LPN,FO,NS>* MVPLeaf<BF,PL,LC,LPN,FO,NS>::AddDataPoints(vector<D
 			// clear out points
 			this->m_npoints = 0;
 			this->m_nvps = 0;
-			SelectVantagePoints(points);
+			this->SelectVantagePoints(points);
 			MarkLeafDistances(points);
 			this->MarkPointDistances(points, level);
 			for (DataPoint<PL> *dp : points){
@@ -578,30 +569,32 @@ void MVPLeaf<BF,PL,LC,LPN,FO,NS>::FilterDataPoints(const DataPoint<PL> &target,
 	int pathlimit = (tpath.size() <= PL) ? tpath.size() : PL;
    	for (int index=0;index < (int)m_npoints;index++){
 		bool skip = false;
-
 		DataPoint<PL> *dp = m_points[index];
-		// filter using precomputed path distances from vantage points down tree to current node
-		for (int i=0;i < pathlimit;i++){
-			if (!(dp->GetPath(i) >= tpath[i] - radius && dp->GetPath(i) <= tpath[i] + radius)){
-				skip = true;
-				break;
-			}
-		}
 
-		if (!skip){
-			// filter using precomputed distances in node
-			for (int i=0;i < this->m_nvps;i++){
-				if (!(m_pdists[i][index] >=  tpath[level+i] - radius) && (m_pdists[i][index] <= tpath[level+i] + radius)){
+		if (dp->IsActive()){
+			// filter using precomputed path distances from vantage points down tree to current node
+			for (int i=0;i < pathlimit;i++){
+				if (!(dp->GetPath(i) >= tpath[i] - radius && dp->GetPath(i) <= tpath[i] + radius)){
 					skip = true;
 					break;
 				}
 			}
-		}
 
-		if (!skip){
-			// still not ruled out
-			if (dp->IsActive() && target.distance(dp) <= radius){
-				results.push_back(dp);
+			if (!skip){
+				// filter using precomputed distances in node
+				for (int i=0;i < this->m_nvps;i++){
+					if (!(m_pdists[i][index] >=  tpath[level+i] - radius) && (m_pdists[i][index] <= tpath[level+i] + radius)){
+						skip = true;
+						break;
+					}
+				}
+			}
+
+			if (!skip){
+				// still not ruled out
+				if (target.distance(dp) <= radius){
+					results.push_back(dp);
+				}
 			}
 		}
 	}
