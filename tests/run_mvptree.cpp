@@ -25,7 +25,7 @@ static const int n_centers = 10;
 
 const int bf = 2;   //branchfactor
 const int pl = 2;   // pathlength
-const int lc = 2000; // leafcap
+const int lc = 2500; // leafcap
 const int lpn = 2;  // levelspernode
 const int fo = 4; //fanout bf^lpn
 const int ns = 2; //numsplits bf^(lpn-1)
@@ -135,7 +135,7 @@ void do_run(MVPTree<bf,pl,lc,lpn,fo,ns> &mvptree, vector<PerfMetrics> &metrics){
 	avgs.query_time = (double)total_query.count()/(double)n_centers;
 	
 	cout << setw(10) << right << "query: "
-		 << setw(10)  << setprecision(6) << avgs.query_ops << "% opers - ("
+		 << setw(10)  << setprecision(6) << avgs.query_ops << "% distance operations - ("
 		 << setw(10) << setprecision(6)  << avgs.query_time << " millisecs)" <<  endl;
 
 	metrics.push_back(avgs);
@@ -173,10 +173,10 @@ int main(int argc, char **argv){
 		avg_query_time += curr.query_time/n_runs;
 	}
 	
-	cout << endl << "avg: build ops: " << avg_build_ops
-		 << " build time: " << avg_build_time << endl
-		 << " avg query ops: " << avg_query_ops
-		 << " avg query time: " << avg_query_time << endl;
+	cout << endl << "avg: build ops: " << avg_build_ops << "% ops"
+		 << " build time: " << avg_build_time << " seconds" << endl
+		 << " avg query ops: " << avg_query_ops << "% ops" 
+		 << " avg query time: " << avg_query_time << " millisecs" << endl;
 
 	
 	cout << "Done." << endl;

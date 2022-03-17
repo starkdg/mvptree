@@ -328,7 +328,7 @@ size_t MVPTree<BF,PL,LC,LPN,FO,NS>::MemoryUsage()const{
 	} while (!currnodes.empty());
 	
 	return  n_points*sizeof(DataPoint<PL>) + n_internal*sizeof(MVPInternal<BF,PL,LC,LPN,FO,NS>)
-		+ n_leaf*sizeof(MVPLeaf<BF,PL,LC,LPN,FO,NS>) + sizeof(MVPLeaf<BF,PL,LC,LPN,FO,NS>);
+		+ n_leaf*sizeof(MVPLeaf<BF,PL,LC,LPN,FO,NS>);
 }
 
 template<int BF,int PL, int LC, int LPN, int FO, int NS>

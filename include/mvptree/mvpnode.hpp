@@ -190,9 +190,30 @@ MVPNode<BF,PL,LC,LPN,FO,NS>* MVPNode<BF,PL,LC,LPN,FO,NS>::CreateNode(vector<Data
 
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
 void MVPNode<BF,PL,LC,LPN,FO,NS>::SelectVantagePoints(vector<DataPoint<PL>*> &points){
-	while (this->m_nvps < LPN && points.size()){
-		this->m_vps[this->m_nvps++] = points.back();
+	const int limit = 10;
+	if (this->m_nvps < LPN && points.size() > 0){
+
+		DataPoint<PL> *vp = points.back();
+		this->m_vps[this->m_nvps++] = vp;
 		points.pop_back();
+	
+		while (this->m_nvps < LPN && points.size() > 0) {
+			double max_distance = -1.0;
+			int max_pos = 0;
+			int nlimit = ((int)points.size() < limit) ? (int)points.size() : limit;
+			for (int i=0;i < nlimit;i++){
+				double d = vp->distance(points[i]);
+				if (d > max_distance){
+					max_distance = d;
+					max_pos = i;
+				}
+			}
+
+			vp = points[max_pos];
+			points[max_pos] = points.back();
+			points.pop_back();
+			this->m_vps[m_nvps++] = vp;
+		}
 	}
 }
 
