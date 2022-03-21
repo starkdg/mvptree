@@ -30,15 +30,15 @@ const int n_runs = 4;
 const int npoints = 100000;
 const int n_iters = 10;
 const int nclusters = 10;
-const int cluster_size = 10;
-const int radius = 10;
+const int cluster_size = 1;
+const int radius = 0;
 
 const int BF = 2;   //branchfactor
-const int PL = 10;   // pathlength
-const int LC = 3000; // leafcap
-const int LPN = 10;  // levelspernode
-const int FO = 1024; //fanout bf^lpn
-const int NS = 512; //numsplits bf^(lpn-1)
+const int PL = 16;   // pathlength
+const int LC = 2500; // leafcap
+const int LPN = 12;  // levelspernode
+const int FO = 4096; //fanout bf^lpn
+const int NS = 2048; //numsplits bf^(lpn-1)
 
 
 struct perfmetric {

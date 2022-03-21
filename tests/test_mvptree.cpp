@@ -105,7 +105,7 @@ void simple_test(){
 	
 	size_t n_bytes = tree.MemoryUsage();
 	cout << dec << n_bytes << " bytes used" << endl;
-	assert(n_bytes == 2872);
+	assert(n_bytes == 2968);
 
 
 	const int n_points2 = 30;
