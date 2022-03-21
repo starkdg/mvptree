@@ -71,6 +71,8 @@ public:
 
 	const vector<DataPoint<PL>*> Query(const DataPoint<PL> &target, const double radius) const;
 
+	void PrintTree()const;
+
 	size_t MemoryUsage()const;
 
 	void SetSync(int n);
@@ -307,6 +309,32 @@ const vector<DataPoint<PL>*> MVPTree<BF,PL,LC,LPN,FO,NS>::Query(const DataPoint<
 }
 
 template<int BF,int PL, int LC, int LPN, int FO, int NS>
+void MVPTree<BF,PL,LC,LPN,FO,NS>::PrintTree()const {
+	map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
+	if (m_top != NULL) currnodes[0] = m_top;
+
+	int n=0;
+	do {
+
+		cout << dec << "level = " << n << " (" << currnodes.size() << " nodes" << endl;;
+		int n_nodes = pow(BF, n);
+		int n_childnodes = pow(BF, n+LPN);
+		for (auto const &iter : currnodes){
+			int node_index = iter.first;
+			MVPNode<BF,PL,LC,LPN,FO,NS> *mvpnode = iter.second;
+			if (mvpnode){
+				ExpandNode(mvpnode, childnodes, node_index);
+			}
+		}
+		cout << endl;
+		currnodes = move(childnodes);
+		n+= LPN;
+	} while (!currnodes.empty());
+
+	return;
+}
+
+template<int BF,int PL, int LC, int LPN, int FO, int NS>
 size_t MVPTree<BF,PL,LC,LPN,FO,NS>::MemoryUsage()const{
 	map<int, MVPNode<BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
 	if (m_top != NULL) currnodes[0] = m_top;
@@ -328,7 +356,7 @@ size_t MVPTree<BF,PL,LC,LPN,FO,NS>::MemoryUsage()const{
 	} while (!currnodes.empty());
 	
 	return  n_points*sizeof(DataPoint<PL>) + n_internal*sizeof(MVPInternal<BF,PL,LC,LPN,FO,NS>)
-		+ n_leaf*sizeof(MVPLeaf<BF,PL,LC,LPN,FO,NS>);
+		+ n_leaf*sizeof(MVPLeaf<BF,PL,LC,LPN,FO,NS>) + sizeof(MVPTree<BF,PL,LC,LPN,FO,NS>);
 }
 
 template<int BF,int PL, int LC, int LPN, int FO, int NS>

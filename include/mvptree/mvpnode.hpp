@@ -3,6 +3,7 @@
 
 #include <map>
 #include <vector>
+#include <array>
 #include <cmath>
 #include <algorithm>
 #include "mvptree/mvptree.hpp"
@@ -177,7 +178,7 @@ MVPNode<BF,PL,LC,LPN,FO,NS>* MVPNode<BF,PL,LC,LPN,FO,NS>::CreateNode(vector<Data
 							 map<int, vector<DataPoint<PL>*>*> &childpoints,
 							 int level, int index){
 	MVPNode<BF,PL,LC,LPN,FO,NS> *node = NULL;
-	if (points.size() <= LC + PL){
+	if (points.size() <= LC + LPN){
 		node = new MVPLeaf<BF,PL,LC,LPN,FO,NS>();
 	} else {
 		node = new MVPInternal<BF,PL,LC,LPN,FO,NS>();
@@ -188,19 +189,32 @@ MVPNode<BF,PL,LC,LPN,FO,NS>* MVPNode<BF,PL,LC,LPN,FO,NS>::CreateNode(vector<Data
 	return node;
 }
 
+
 template<int BF,int PL,int LC,int LPN,int FO,int NS>
 void MVPNode<BF,PL,LC,LPN,FO,NS>::SelectVantagePoints(vector<DataPoint<PL>*> &points){
-	const int limit = 10;
+	while (this->m_nvps < LPN && points.size() > 0){
+		this->m_vps[this->m_nvps++] = points.back();
+		points.pop_back();
+	}
+}
+
+
+/**
+// alternate select vantage points
+template<int BF,int PL,int LC,int LPN,int FO,int NS>
+void MVPNode<BF,PL,LC,LPN,FO,NS>::SelectVantagePoints(vector<DataPoint<PL>*> &points){
+	const int limit = 50;
 	if (this->m_nvps < LPN && points.size() > 0){
 
 		DataPoint<PL> *vp = points.back();
+		
 		this->m_vps[this->m_nvps++] = vp;
 		points.pop_back();
-	
+
 		while (this->m_nvps < LPN && points.size() > 0) {
 			double max_distance = -1.0;
 			int max_pos = 0;
-			int nlimit = ((int)points.size() < limit) ? (int)points.size() : limit;
+			int nlimit = ((int)points.size() <= limit) ? (int)points.size() : limit;
 			for (int i=0;i < nlimit;i++){
 				double d = vp->distance(points[i]);
 				if (d > max_distance){
@@ -216,7 +230,7 @@ void MVPNode<BF,PL,LC,LPN,FO,NS>::SelectVantagePoints(vector<DataPoint<PL>*> &po
 		}
 	}
 }
-
+**/
 
 template<int BF, int PL, int LC, int LPN, int FO, int NS>
 void MVPNode<BF,PL,LC,LPN,FO,NS>::MarkPointDistances(vector<DataPoint<PL>*> &points, const int level){
@@ -431,11 +445,11 @@ void MVPInternal<BF,PL,LC,LPN,FO,NS>::TraverseNode(const DataPoint<PL> &target, 
 		double d = path->at(level+n);
 
 		//int lengthMn = lengthM*n_nodes;
-		for (int node_index=0;node_index<n_nodes;node_index++){
+		for (int node_index=0;node_index < n_nodes;node_index++){
 			if (currnodes[node_index]){
 				if (m_splits[n][node_index*lengthM] >= 0){
 					double m = m_splits[n][node_index*lengthM];
-					for (int j=0;j<lengthM;j++){
+					for (int j=0;j < lengthM;j++){
 						m = m_splits[n][node_index*lengthM+j];
 						if (d <= m + radius) nextnodes[node_index*BF+j] = true;
 					}
@@ -514,7 +528,7 @@ MVPNode<BF,PL,LC,LPN,FO,NS>* MVPLeaf<BF,PL,LC,LPN,FO,NS>::AddDataPoints(vector<D
 	MVPNode<BF,PL,LC,LPN,FO,NS> *retnode = this;
 	if (m_npoints + points.size() <= LC){ 
 		// add points to existing leaf
-		if (level < PL) MarkLeafDistances(points);
+		MarkLeafDistances(points);
 		this->MarkPointDistances(points, level);
 		for (DataPoint<PL> *dp : points){
 			m_points[m_npoints++] = dp;
@@ -593,18 +607,19 @@ void MVPLeaf<BF,PL,LC,LPN,FO,NS>::FilterDataPoints(const DataPoint<PL> &target,
 		DataPoint<PL> *dp = m_points[index];
 
 		if (dp->IsActive()){
-			// filter using precomputed path distances from vantage points down tree to current node
-			for (int i=0;i < pathlimit;i++){
-				if (!(dp->GetPath(i) >= tpath[i] - radius && dp->GetPath(i) <= tpath[i] + radius)){
+			// filter using precomputed distances in node
+			for (int i=0;i < this->m_nvps;i++){
+				if (!(m_pdists[i][index] >=  tpath[level+i] - radius) && (m_pdists[i][index] <= tpath[level+i] + radius)){
 					skip = true;
 					break;
 				}
 			}
 
 			if (!skip){
-				// filter using precomputed distances in node
-				for (int i=0;i < this->m_nvps;i++){
-					if (!(m_pdists[i][index] >=  tpath[level+i] - radius) && (m_pdists[i][index] <= tpath[level+i] + radius)){
+				// filter using precomputed path distances between target and vantage points
+				// from top down to current place in tree
+				for (int i=0;i < pathlimit;i++){
+					if (!(dp->GetPath(i) >= tpath[i] - radius && dp->GetPath(i) <= tpath[i] + radius)){
 						skip = true;
 						break;
 					}

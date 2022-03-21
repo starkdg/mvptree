@@ -7,7 +7,7 @@
 
 using namespace std;
 
-template<int PL=8>
+template<int PL>
 class DataPoint {
 protected:
 	double dists[PL];
@@ -56,19 +56,11 @@ public:
 		dists[n] = val;
 	}
 	
-	static void ResetCount(){
-		DataPoint::n_ops = 0;
-	}
-
-	static const int GetCount(){
-		return DataPoint::n_ops;
-	}
-	
 	virtual const double distance(const DataPoint<PL> *other)const = 0;
 	
 };
 
-template<int PL=8>
+template<int PL>
 class DblDataPoint : public DataPoint<PL> {
 protected:
 	double value;
@@ -99,7 +91,7 @@ public:
 	}
 };
 
-template<int PL=8>
+template<int PL>
 class H64DataPoint : public DataPoint<PL> {
 protected:
 	uint64_t value;
