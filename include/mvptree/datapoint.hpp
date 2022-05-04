@@ -4,123 +4,97 @@
 #include <cstring>
 #include <stdexcept>
 #include <cmath>
+#include <cstring>
+#include <array>
 
 using namespace std;
 
-template<int PL>
-class DataPoint {
-protected:
-	double dists[PL];
+template<typename T>
+struct item_t {
 	long long id;
+	T key;
+	item_t(){}
+	item_t(const long long id, const T key):id(id),key(key){}
+	item_t(const item_t<T> &other):id(other.id),key(other.key){}
+	item_t<T>& operator=(const item_t<T> &other){
+		id = other.id;
+		key = other.key;
+		return *this;
+	}
+	const double distance(const item_t<T> &other)const{
+		return key.distance(other.key);
+	}
+};
+
+
+template<typename T>
+struct vp_t {
+	long long id;
+	T key;
 	bool active;
-public:
-
-	static int n_ops;
-	
-	DataPoint(const long long id):id(id),active(true){}
-
-	DataPoint(const DataPoint<PL> &other){
+	vp_t(){}
+	vp_t(const long long id, const T key):id(id),key(key),active(true){}
+	vp_t(const vp_t<T> &other):id(other.id),key(other.key),active(other.active){}
+	const vp_t<T>& operator=(const vp_t<T> &other){
 		id = other.id;
+		key = other.key;
 		active = other.active;
-		memcpy(dists, other.dists, PL*sizeof(double));
+		return *this;
 	}
-	
-	virtual ~DataPoint(){}
-	
-	DataPoint<PL>& operator=(const DataPoint<PL> &other){
+	const double distance(const T &other)const{
+	    return key.distance(other.key);
+	}
+};
+
+
+template<typename T, int PL>
+struct datapoint_t {
+	static unsigned long n_query_ops;
+	static unsigned long n_build_ops;
+	long long id;
+	T key;
+	bool active;
+	double dists[PL];
+	datapoint_t():id(0),active(true){
+		for (int i=0;i < PL;i++) dists[i] = 0;
+	}
+	datapoint_t(const long long id, T key):id(id),key(key),active(true){
+		for (int i=0;i < PL;i++) dists[i] = 0;
+	}
+	datapoint_t(const datapoint_t<T, PL> &other):id(other.id),key(other.key),active(other.active){
+		for (int i=0;i < PL;i++) dists[i] = other.dists[i];
+	}
+
+	datapoint_t<T,PL>& operator=(const datapoint_t<T,PL> &other){
 		id = other.id;
+		key = other.key;
 		active = other.active;
-		memcpy(dists, other.dists, PL*sizeof(double));
+		for (int i=0;i < PL;i++) dists[i] = other.dists[i];
 		return *this;
 	}
 
-	const bool IsActive() const{
-		return active;
+	const double distance(const datapoint_t<T,PL> &other)const{
+		return key.distance(other.key);
 	}
 	
-	void Deactivate(){
-		active = false;
+	const double distance(const item_t<T> &other)const{
+	    return key.distance(other.key);
 	}
-
-	const long long GetId()const{
-		return id;
+	const double distance(const vp_t<T> &other)const{
+		datapoint_t<T,PL>::n_build_ops++;
+		return key.distance(other.key);
 	}
-
-	const double GetPath(const int n)const{
-		if (n < 0 || n >= PL) throw out_of_range("index out of range");
-		return dists[n];
-	}
-
-	void SetPath(const double val, const int n){
-		if (n < 0 || n >= PL) throw out_of_range("index out of range");
-		dists[n] = val;
-	}
-	
-	virtual const double distance(const DataPoint<PL> *other)const = 0;
-	
-};
-
-template<int PL>
-class DblDataPoint : public DataPoint<PL> {
-protected:
-	double value;
-public:
-	DblDataPoint(const long long id, const double value):DataPoint<PL>(id),value(value){
-		this->value = value;
-	}
-	DblDataPoint(const DblDataPoint &other):DataPoint<PL>(other){
-		value = other.value;
-	}
-	~DblDataPoint(){}
-	
-	DblDataPoint& operator=(const DblDataPoint &other){
-		DataPoint<PL>::operator=(other);
-		value = other.value;
-		return *this;
-	}
-
-	
-	const double GetValue()const{
-		return value;
-	}
-
-	const double distance(const DataPoint<PL> *other)const override{
-		DataPoint<PL>::n_ops++;
-		DblDataPoint *pnt = (DblDataPoint*)other;
-		return abs(this->value - pnt->value);
+	const double distance(const T &other){
+		datapoint_t<T,PL>::n_query_ops++;
+		return key.distance(other.key);
 	}
 };
 
-template<int PL>
-class H64DataPoint : public DataPoint<PL> {
-protected:
-	uint64_t value;
-public:
-	H64DataPoint(const long long id, const uint64_t value):DataPoint<PL>(id),value(value){}
-	H64DataPoint(const H64DataPoint &other):DataPoint<PL>(other){
-		value = other.value;
-	}
-	~H64DataPoint(){}
-	H64DataPoint& operator=(const H64DataPoint &other){
-		DataPoint<PL>::operator=(other);
-		value = other.value;
-		return *this;
-	}
+template<typename T, int PL>
+unsigned long datapoint_t<T,PL>::n_query_ops = 0;
 
-	const uint64_t GetValue()const{
-		return value;
-	}
+template<typename T, int PL>
+unsigned long datapoint_t<T,PL>::n_build_ops = 0;
 
-	const double distance(const DataPoint<PL> *other)const override{
-		DataPoint<PL>::n_ops++;
-		H64DataPoint *pnt = (H64DataPoint*)other;
-		uint64_t tmp = pnt->GetValue();
-		return __builtin_popcountll(value^tmp);
-	}
-};
-
-
-template<int PL>
-int DataPoint<PL>::n_ops = 0;
 
 #endif

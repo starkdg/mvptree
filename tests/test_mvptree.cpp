@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <random>
 #include "mvptree/mvptree.hpp"
+#include "mvptree/key.hpp"
 
 using namespace std;
 
@@ -20,31 +21,34 @@ const int FO = 4;
 const int NS = 2;
 
 
-int generate_data(vector<DataPoint<PL>*> &points, int N){
+
+/**
+ * generate N datapoints
+ **/
+int generate_data(vector<datapoint_t<H64KeyObject,PL>> &points, int N){
 	for (int i=0;i<N;i++){
 		uint64_t value = m_distrib(m_gen);
-		DataPoint<PL> *pnt = new H64DataPoint<PL>(m_id++, value);
-		points.push_back(pnt);
+		points.push_back({ m_id++, H64KeyObject(value) }); 
 	}
 	return 0;
 }
 
-int generate_cluster(vector<DataPoint<PL>*> &points, uint64_t center, int N, int max_radius){
+/**
+ * generate a cluster of N datapoints with center point and cluster size of max_radius
+ **/
+int generate_cluster(vector<datapoint_t<H64KeyObject,PL>> &points, uint64_t center, int N, int max_radius){
 	static uniform_int_distribution<int> radius_distr(1, max_radius);
 	static uniform_int_distribution<int> bitindex_distr(0, 63);
 		
 	uint64_t mask = 0x01;
-
-	DataPoint<PL> *mid = new H64DataPoint<PL>(m_id++, center);
-	points.push_back(mid);
+	points.push_back({m_id++, H64KeyObject(center) });
 	for (int i=0;i < N-1;i++){
 		uint64_t val = center;
 		int dist = radius_distr(m_gen);
 		for (int j=0;j < dist;j++){
 			val ^= (mask << bitindex_distr(m_gen));
 		}
-		DataPoint<PL> *pnt = new H64DataPoint<PL>(m_id++, val);
-		points.push_back(pnt);
+		points.push_back({ m_id++, H64KeyObject(val)} );
 	}
 	return N;
 }
@@ -53,13 +57,13 @@ void simple_test(){
 	const int n_points = 20;
 
 	cout << "generate " << dec << n_points << " points" << endl;
-	vector<DataPoint<PL>*> points;
+	vector<datapoint_t<H64KeyObject,PL>> points;
 	generate_data(points, n_points);
 
 	assert(points.size() == n_points);
 
 	cout << "build tree" << endl;
-	MVPTree<BF,PL,LC,LPN,FO,NS> tree;
+	MVPTree<H64KeyObject, BF,PL,LC,LPN,FO,NS> tree;
 	tree.Add(points);
 	tree.Sync();
 	
@@ -70,7 +74,7 @@ void simple_test(){
 	uint64_t center = m_distrib(m_gen);
 	double radius = 5;
 	int cluster_size = 5;
-	vector<DataPoint<PL>*> cluster;
+	vector<datapoint_t<H64KeyObject,PL>> cluster;
 
 	cout << "generate cluster of " << dec << cluster_size << " points" << endl;
 	generate_cluster(cluster, center, cluster_size, radius);
@@ -82,53 +86,42 @@ void simple_test(){
 	cout << "tree size is " << dec << n << endl;
 	assert(n == n_points + cluster_size);
 	
-	
-	H64DataPoint<PL> target(0, center);
-	vector<DataPoint<PL>*> results = tree.Query(target, radius);
+	H64KeyObject target(center);
+	vector<item_t<H64KeyObject>> results = tree.Query(target, radius);
 	assert((int)results.size() == cluster_size);
 
-	cout << "Query for target value " << target.GetValue() << " and radius " << radius << endl;
+	cout << "Query for target " << center << " and radius " << radius << endl;
 	cout << "Found " << results.size() << " items" << endl;
 	assert((int)results.size() == cluster_size);
-	for (DataPoint<PL> *dp : results){
-		H64DataPoint<PL> *pnt = (H64DataPoint<PL>*)dp;
-		cout << "==> id = " << pnt->GetId() << " value = " << hex << pnt->GetValue() << endl;
+	for (item_t<H64KeyObject> &item : results){
+		cout << "==> id = " << item.id << " value = " << hex << item.key.key << endl;
 	}
 
 	
-	cout << "Delete item" << endl;
-	tree.Delete(5);
-
 	n = tree.Size();
 	cout << dec << "tree size: " << n << endl;
-	assert(n == n_points + cluster_size - 1);
+	assert(n == n_points + cluster_size);
 	
 	size_t n_bytes = tree.MemoryUsage();
 	cout << dec << n_bytes << " bytes used" << endl;
-	assert(n_bytes == 2968);
-
-
+	//assert(n_bytes == 4208);
+	
 	const int n_points2 = 30;
 
 	cout << "generate " << dec << n_points2 << " points" << endl;
-	vector<DataPoint<PL>*> points2;
+	vector<datapoint_t<H64KeyObject,PL>> points2;
 	generate_data(points2, n_points2);
 
 	cout << "Add " << dec << n_points2 << " to tree" << endl;
 	tree.Add(points2);
 	n = tree.Size();
 	cout << "tree size " << dec << n << endl;
-	assert(n == n_points + cluster_size + n_points2 - 1);
+	assert(n == n_points + cluster_size + n_points2);
 
 
 	int internal_nodes = 0, leaf_nodes = 0;
 	tree.CountNodes(internal_nodes, leaf_nodes);
 	cout << "internal: " << internal_nodes << " leaf: " << leaf_nodes << endl;
-	assert(internal_nodes == 1 && leaf_nodes == 4);
-	
-	const H64DataPoint<PL> *retnode = (H64DataPoint<PL>*)tree.Lookup(10);
-	assert(retnode != NULL);
-	cout << "Look up id=10 => " << retnode->GetId() << " " << hex << retnode->GetValue() << endl;
 	
 	cout << "Clear tree" << endl;
 	tree.Clear();
@@ -142,9 +135,9 @@ void test(){
 	const int N = 100;
 	const int n_iters = 5;
 
-	MVPTree<BF,PL,LC,LPN,FO,NS> mvptree;
+	MVPTree<H64KeyObject,BF,PL,LC,LPN,FO,NS> mvptree;
 	for (int i=0;i < n_iters;i++){
-		vector<DataPoint<PL>*> points;
+		vector<datapoint_t<H64KeyObject,PL>> points;
 		cout << "Add " << dec << N << " points" << endl;
 		generate_data(points, N);
 		mvptree.Add(points);
@@ -161,14 +154,14 @@ void test(){
 
 	const int cluster_size = 10;
 	const int n_clusters = 5;
-	const int radius = 10;
+	const double radius = 10;
 	uint64_t centers[n_clusters];
 	for (int i=0;i < n_clusters;i++){
 		cout << "Add cluster of " << cluster_size << " points to tree" << endl;
 
 		centers[i] = m_distrib(m_gen);
 
-		vector<DataPoint<PL>*> cluster;
+		vector<datapoint_t<H64KeyObject,PL>> cluster;
 		generate_cluster(cluster, centers[i], cluster_size, radius);
 		mvptree.Add(cluster);
 	}
@@ -179,9 +172,9 @@ void test(){
 	assert(sz == N*n_iters + cluster_size*n_clusters);
 
 	for (int i=0;i < n_clusters;i++){
-		H64DataPoint<PL> target(0, centers[i]);
-		cout << "Query " << target.GetId() << " " << hex << target.GetValue() << endl;
-		vector<DataPoint<PL>*> results = mvptree.Query(target, radius);
+		H64KeyObject  target(centers[i]);
+		cout << "Query " << hex << centers[i] << endl;
+		vector<item_t<H64KeyObject>> results = mvptree.Query(target, radius);
 		cout << "==> Found " << dec << results.size() << " points" << endl;
 		assert(results.size() >= n_clusters);
 	}
@@ -191,24 +184,13 @@ void test(){
 	cout << "internal nodes: " << n_internal << endl;
 	cout << "leaf nodes: " << n_leaf << endl;
 
-	
-	const DataPoint<PL> *dp = mvptree.Lookup(100);
-	cout << "Lookup 100 => " << dp->GetId() << endl;
-	assert(dp != NULL);
-	
-	const DataPoint<PL> *dp2 = mvptree.Lookup(155);
-	cout << "Lookup 155 => " << dp2->GetId() << endl;
-	assert(dp2 != NULL);
-
-	cout << "Delete 100" << endl;
-	mvptree.Delete(100);
-
-	cout << "Delete 155" << endl;
-	mvptree.Delete(155);
+	int ndels = mvptree.DeletePoint(H64KeyObject(centers[0]));
+	cout << "Deletes " << ndels << " points" << endl;
+	assert(ndels == 1);
 
 	sz = mvptree.Size();
 	cout << "tree size: " << sz << endl;
-	assert(sz == N*n_iters + cluster_size*n_clusters - 2);
+	assert(sz == N*n_iters + cluster_size*n_clusters - 1);
 
 	cout << "Clear tree" << endl;
 	mvptree.Clear();

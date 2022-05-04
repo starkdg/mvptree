@@ -1,6 +1,3 @@
-/**
- * g++ -omvptree run_mvptree.cpp -g -O2 -Wall -Wno-unused-variable -I include/
- **/
 #include <cstdlib>
 #include <cstdint>
 #include <iostream>
@@ -21,25 +18,26 @@ using namespace std;
 static long long m_id = 1;
 static long long g_id = 100000000;
 
-static random_device m_rd;
-static mt19937_64 m_gen(m_rd());
-static uniform_int_distribution<uint64_t> m_distrib(0);
-
-
 const int n_runs = 4;
 
 const int npoints = 50000;
 const int n_iters = 10;
 const int nclusters = 10;
 const int cluster_size = 10;
-const int radius = 10;
+const double radius = 0.04;
+const double diff = sqrt(pow(radius, 2.0)/16.0);
 
 const int BF = 2;   //branchfactor
-const int PL = 12;   // pathlength
-const int LC = 2000; // leafcap
-const int LPN = 12;  // levelspernode
-const int FO = 4096; //fanout bf^lpn
-const int NS = 2048; //numsplits bf^(lpn-1)
+const int PL = 8;   // pathlength
+const int LC = 250; // leafcap
+const int LPN = 10;  // levelspernode
+const int FO = 1024; //fanout bf^lpn
+const int NS = 512; //numsplits bf^(lpn-1)
+
+static random_device m_rd;
+static mt19937_64 m_gen(m_rd());
+static uniform_real_distribution<double> m_distrib(-1.0, 1.0);
+static 	uniform_real_distribution<double> radius_distr(-diff, diff);
 
 
 struct perfmetric {
@@ -49,27 +47,31 @@ struct perfmetric {
 	double avg_query_time;
 };
 
-int generate_data(vector<datapoint_t<H64KeyObject,PL>> &points, int n){
+int generate_point(double v[]){
+
+	for (int i=0;i < 16;i++) v[i] = m_distrib(m_gen);
+
+	return 0;
+}
+
+int generate_data(vector<datapoint_t<VectorKeyObject,PL>> &points, int n){
+	double v[16];
 	for (int i=0;i < n;i++){
-		uint64_t value = m_distrib(m_gen);
-		points.push_back({ m_id++, H64KeyObject(value) });
+		generate_point(v);
+		points.push_back({ m_id++, VectorKeyObject(v) });
 	}
 	return 0;
 }
 
-int generate_cluster(vector<datapoint_t<H64KeyObject,PL>> &points, uint64_t center, int n, int max_radius){
-	static uniform_int_distribution<int> radius_distr(1, max_radius);
-	static uniform_int_distribution<int> bitindex_distr(0, 63);
-		
-	uint64_t mask = 0x01;
-	points.push_back({ g_id++, H64KeyObject(center) });
+int generate_cluster(vector<datapoint_t<VectorKeyObject,PL>> &points, double center[], int n){
+
+	points.push_back({ g_id++, VectorKeyObject(center) });
+
+	double v[16];
 	for (int i=0;i < n-1;i++){
-		uint64_t val = center;
-		int dist = radius_distr(m_gen);
-		for (int j=0;j < dist;j++){
-			val ^= (mask << bitindex_distr(m_gen));
-		}
-		points.push_back({ g_id++, H64KeyObject(val) });
+		memcpy(v, center, 16*sizeof(double));
+		for (int j=0;j < 16;j++) v[j] += radius_distr(m_gen);
+		points.push_back({ g_id++, VectorKeyObject(v) });
 	}
 	return 0;
 }
@@ -78,13 +80,13 @@ void do_run(int index, vector<struct perfmetric> &metrics){
 	m_id = 1;
 	g_id = 100000000;
 
-	MVPTree<H64KeyObject,BF,PL,LC,LPN,FO,NS> tree;
+	MVPTree<VectorKeyObject,BF,PL,LC,LPN,FO,NS> tree;
 
 	int sz;
 	chrono::duration<double> total(0);
-	datapoint_t<H64KeyObject,PL>::n_build_ops = 0;
+	datapoint_t<VectorKeyObject,PL>::n_build_ops = 0;
 	for (int i=0;i < n_iters;i++){
-		vector<datapoint_t<H64KeyObject,PL>> points;
+		vector<datapoint_t<VectorKeyObject,PL>> points;
 		generate_data(points, npoints);
 	
 		auto s = chrono::steady_clock::now();
@@ -100,18 +102,18 @@ void do_run(int index, vector<struct perfmetric> &metrics){
 
 	struct perfmetric m;
 	
-	m.avg_build_ops = 100.0*((double)datapoint_t<H64KeyObject,PL>::n_build_ops/(double)sz);
+	m.avg_build_ops = 100.0*((double)datapoint_t<VectorKeyObject,PL>::n_build_ops/(double)sz);
 	m.avg_build_time = total.count();
 	
 	cout << "(" << index << ") build tree: " << setw(10) << setprecision(6) << m.avg_build_ops << "% opers "
 		 << setw(10) << setprecision(6) << m.avg_build_time << " secs ";
 
-	uint64_t centers[nclusters];
+	double centers[nclusters][16];
 	for (int i=0;i < nclusters;i++){
-		centers[i] = m_distrib(m_gen);
+		generate_point(centers[i]);
 
-		vector<datapoint_t<H64KeyObject,PL>> cluster;
-		generate_cluster(cluster, centers[i], cluster_size, radius);
+		vector<datapoint_t<VectorKeyObject,PL>> cluster;
+		generate_cluster(cluster, centers[i], cluster_size);
 		assert(cluster.size() == cluster_size);
 		
 		tree.Add(cluster);
@@ -122,13 +124,13 @@ void do_run(int index, vector<struct perfmetric> &metrics){
 
 	tree.Sync();
 
-	datapoint_t<H64KeyObject,PL>::n_query_ops = 0;
+	datapoint_t<VectorKeyObject,PL>::n_query_ops = 0;
 	chrono::duration<double, milli> querytime(0);
 	for (int i=0;i < nclusters;i++){
-		H64KeyObject target(centers[i]);
+		VectorKeyObject target(centers[i]);
 
 		auto s = chrono::steady_clock::now();
-		vector<item_t<H64KeyObject>> results = tree.Query(target, radius);
+		vector<item_t<VectorKeyObject>> results = tree.Query(target, radius);
 		auto e = chrono::steady_clock::now();
 		querytime += (e - s);
 
@@ -136,7 +138,7 @@ void do_run(int index, vector<struct perfmetric> &metrics){
 		assert(nresults >= cluster_size);
 	}
 
-	m.avg_query_ops = 100.0*((double)datapoint_t<H64KeyObject,PL>::n_query_ops/(double)sz/(double)nclusters);
+	m.avg_query_ops = 100.0*((double)datapoint_t<VectorKeyObject,PL>::n_query_ops/(double)sz/(double)nclusters);
 	m.avg_query_time = (double)querytime.count()/(double)nclusters;
 
 	cout << " query ops " << dec << setprecision(6) << m.avg_query_ops << "% opers   " 
@@ -151,7 +153,7 @@ void do_run(int index, vector<struct perfmetric> &metrics){
 
 int main(int argc, char **argv){
 
-	MVPTree<H64KeyObject,BF,PL,LC,LPN,FO,NS> tree;
+	MVPTree<VectorKeyObject,BF,PL,LC,LPN,FO,NS> tree;
 
 	cout << "MVPTree Tests" << endl << endl;;
 
@@ -160,8 +162,10 @@ int main(int argc, char **argv){
 	cout << "branchfactor, bf = " << BF << endl;
 	cout << "path length, pl = " << PL << endl;
 	cout << "leaf capacity, lc = " << LC << endl;
-	cout << "levels per node, lpn = " << LPN << endl << endl;
-
+	cout << "levels per node, lpn = " << LPN << endl;
+	cout << "internal node fanout, fo = " << FO << endl << endl;
+	
+	cout << "10-dim real valued object vectors in euclidean metric space" << endl;
 	cout << "dataset size: " << npoints*n_iters << " datapoints" << endl;
 	cout << "no. test runs averaged over: " << n_runs << endl;
 	
