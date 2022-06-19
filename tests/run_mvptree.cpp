@@ -16,7 +16,7 @@
 #include <mvptree/key.hpp>
 
 using namespace std;
-
+using namespace mvp;
 
 static long long m_id = 1;
 static long long g_id = 100000000;
@@ -28,18 +28,18 @@ static uniform_int_distribution<uint64_t> m_distrib(0);
 
 const int n_runs = 4;
 
-const int npoints = 50000;
-const int n_iters = 10;
+const int npoints = 100000;
+const int n_iters = 5;
 const int nclusters = 10;
 const int cluster_size = 10;
 const int radius = 10;
 
 const int BF = 2;   //branchfactor
-const int PL = 12;   // pathlength
-const int LC = 2000; // leafcap
-const int LPN = 12;  // levelspernode
-const int FO = 4096; //fanout bf^lpn
-const int NS = 2048; //numsplits bf^(lpn-1)
+const int PL = 8;   // pathlength
+const int LC = 50; // leafcap
+const int LPN = 4;  // levelspernode
+const int FO = 16; //fanout bf^lpn
+const int NS = 8; //numsplits bf^(lpn-1)
 
 
 struct perfmetric {
@@ -185,8 +185,7 @@ int main(int argc, char **argv){
 	
 	cout << "avg build:  " << avg_build_ops << "% opers " << avg_build_time << " seconds" << endl;
 	cout << "avg query:  " << avg_query_ops << "% opers " << avg_query_time << " milliseconds" << endl;
-
-	
 	cout << endl << "Done." << endl;
+	
 	return 0;
 }

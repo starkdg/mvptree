@@ -6,22 +6,14 @@
 #include <vector>
 #include <map>
 #include <queue>
+#include <ostream>
 #include "mvptree/mvpnode.hpp"
 #include "mvptree/datapoint.hpp"
 
-using namespace std;
-
-template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-class MVPNode;
-
-template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-class MVPInternal;
-
-template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-class MVPLeaf;
 
 /**
  * template arguments
+ *  T  - key type defined in  key.hpp
  *  BF - branchfactor, no. of units to split space at each level of tree
  *  PL - pathlength, no. vantage point distances to maintain for each datapoint
  *  LC - leafcapacity, no. points in each leaf node
@@ -30,53 +22,50 @@ class MVPLeaf;
  *  NS - numsplits, max no. split points for last level of internal node BF^(LPN-1)
  **/
 
-template<typename T,int BF=2, int PL=8, int LC=30, int LPN=2, int FO=4, int NS=2>
-class MVPTree {
-private:
-	vector<datapoint_t<T,PL>> m_arrivals;
+namespace mvp {
+
+	template<typename T,int BF=2, int PL=8, int LC=30, int LPN=2, int FO=4, int NS=2>
+	class MVPTree {
+	private:
+		std::vector<datapoint_t<T,PL>> m_arrivals;
 	
-	MVPNode<T,BF,PL,LC,LPN,FO,NS> *m_top;
+		MVPNode<T,BF,PL,LC,LPN,FO,NS> *m_top;
 
-	unsigned long n_points;
+		int n_sync;
+
+		void LinkNodes(std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &nodes,
+					   std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes)const;
+		void ExpandNode(MVPNode<T,BF,PL,LC,LPN,FO,NS> *node,
+						std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes, const int index)const;
+		MVPNode<T,BF,PL,LC,LPN,FO,NS>* ProcessNode(const int level,
+												   const int index,
+												   MVPNode<T,BF,PL,LC,LPN,FO,NS> *node, std::vector<datapoint_t<T,PL>> &points,
+												   std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes,
+												   std::map<int, std::vector<datapoint_t<T,PL>>*> &childpoints);
+	public:
+		MVPTree():m_top(NULL),n_sync(100){};
+
+		void Add(datapoint_t<T,PL> &item);
 	
-	int n_internal, n_leaf, n_sync;
-
-	void LinkNodes(map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &nodes,
-				   map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes)const;
-	void ExpandNode(MVPNode<T,BF,PL,LC,LPN,FO,NS> *node,
-					map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes, const int index)const;
-	MVPNode<T,BF,PL,LC,LPN,FO,NS>* ProcessNode(const int level,
-											 const int index,
-											 MVPNode<T,BF,PL,LC,LPN,FO,NS> *node, vector<datapoint_t<T,PL>> &points,
-											 map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes,
-											 map<int, vector<datapoint_t<T,PL>>*> &childpoints);
-public:
-	MVPTree():m_top(NULL),n_points(0),n_internal(0),n_leaf(0),n_sync(100){};
-
-
-	void Add(datapoint_t<T,PL> &item);
+		void Add(std::vector<datapoint_t<T,PL>> &items);
+		
+		void Sync();
 	
-	void Add(vector<datapoint_t<T,PL>> &items);
+		const size_t Size()const;
 
-	void Sync();
+		void Clear();
+
+		const std::vector<item_t<T>> Query(const T &target, const double radius) const;
+
+		const int DeletePoint(const T &target);
 	
-	const int Size()const;
+		void Print(std::ostream &ostrm)const;
 
-	void CountNodes(int &n_internal, int &n_leaf)const;
-	
-	void Clear();
+		size_t MemoryUsage()const;
 
-	const vector<item_t<T>> Query(const T &target, const double radius) const;
-
-	const int DeletePoint(const T &target);
-	
-	void PrintTree()const;
-
-	size_t MemoryUsage()const;
-
-	void SetSync(int n);
-};
-
+		void SetSync(int n);
+	};
+}
 
 /** -----------------------------------
  *
@@ -85,8 +74,8 @@ public:
  **/
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-void MVPTree<T,BF,PL,LC,LPN,FO,NS>::LinkNodes(map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &nodes,
-											map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes)const{
+void mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::LinkNodes(std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &nodes,
+											std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes)const{
 	for (auto iter=nodes.begin();iter!=nodes.end();iter++){
 		int i = iter->first;
 		MVPNode<T,BF,PL,LC,LPN,FO,NS> *mvpnode = iter->second;
@@ -100,8 +89,8 @@ void MVPTree<T,BF,PL,LC,LPN,FO,NS>::LinkNodes(map<int, MVPNode<T,BF,PL,LC,LPN,FO
 }
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-void MVPTree<T,BF,PL,LC,LPN,FO,NS>::ExpandNode(MVPNode<T,BF,PL,LC,LPN,FO,NS> *node,
-											 map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes,
+void mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::ExpandNode(MVPNode<T,BF,PL,LC,LPN,FO,NS> *node,
+											 std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes,
 											 const int index)const{
 	if (node != NULL){
 		for (int i=0;i < FO;i++){
@@ -112,12 +101,12 @@ void MVPTree<T,BF,PL,LC,LPN,FO,NS>::ExpandNode(MVPNode<T,BF,PL,LC,LPN,FO,NS> *no
 }
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-MVPNode<T,BF,PL,LC,LPN,FO,NS>* MVPTree<T,BF,PL,LC,LPN,FO,NS>::ProcessNode(const int level,
+mvp::MVPNode<T,BF,PL,LC,LPN,FO,NS>* mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::ProcessNode(const int level,
 																		  const int index,
 																		  MVPNode<T,BF,PL,LC,LPN,FO,NS> *node,
-																		  vector<datapoint_t<T,PL>> &points,
-																		  map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes,
-																		  map<int, vector<datapoint_t<T,PL>>*> &childpoints){
+																		  std::vector<datapoint_t<T,PL>> &points,
+																		  std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> &childnodes,
+																		  std::map<int, std::vector<datapoint_t<T,PL>>*> &childpoints){
 	MVPNode<T,BF,PL,LC,LPN,FO,NS> *retnode = node;
 	if (node == NULL){ // create new node
 		retnode = MVPNode<T,BF,PL,LC,LPN,FO,NS>::CreateNode(points, childpoints, level, index);
@@ -126,13 +115,13 @@ MVPNode<T,BF,PL,LC,LPN,FO,NS>* MVPTree<T,BF,PL,LC,LPN,FO,NS>::ProcessNode(const 
 	}
 
 	if (retnode == NULL)
-		throw runtime_error("failure to assign node");
+		throw std::runtime_error("failure to assign node");
 	
 	return retnode;
 }
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-void MVPTree<T,BF,PL,LC,LPN,FO,NS>::Add(datapoint_t<T,PL> &dp){
+void mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::Add(datapoint_t<T,PL> &dp){
 	m_arrivals.push_back({ dp.id, dp.key });
 	if ((int)m_arrivals.size() >= n_sync){
 		Add(m_arrivals);
@@ -140,35 +129,25 @@ void MVPTree<T,BF,PL,LC,LPN,FO,NS>::Add(datapoint_t<T,PL> &dp){
 }
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-void MVPTree<T,BF,PL,LC,LPN,FO,NS>::Add(vector<datapoint_t<T,PL>> &points){
+void mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::Add(std::vector<datapoint_t<T,PL>> &points){
 	if (points.empty()) return;
 
-	map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> prevnodes, currnodes, childnodes;
+	std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> prevnodes, currnodes, childnodes;
 	if (m_top != NULL)
 		currnodes[0] = m_top;
 
-	map<int, vector<datapoint_t<T,PL>>*> pnts, pnts2;
+	std::map<int, std::vector<datapoint_t<T,PL>>*> pnts, pnts2;
 	pnts[0] = &points;
 
-	n_points += points.size();
-	
 	int n = 0;
 	do {
 		for (auto iter=pnts.begin();iter!=pnts.end();iter++){
 			int index = iter->first;
-			vector<datapoint_t<T,PL>> *list = iter->second;
+			std::vector<datapoint_t<T,PL>> *list = iter->second;
 			MVPNode<T,BF,PL,LC,LPN,FO,NS> *mvpnode = currnodes[index];
 			MVPNode<T,BF,PL,LC,LPN,FO,NS> *newnode = ProcessNode(n, index, mvpnode, *list, childnodes, pnts2);
 			if (newnode != mvpnode){
-				if (newnode != NULL && typeid(*newnode).hash_code() == typeid(MVPInternal<T,BF,PL,LC,LPN,FO,NS>).hash_code()){
-					n_internal++;
-				} else if (typeid(*newnode).hash_code() == typeid(MVPLeaf<T,BF,PL,LC,LPN,FO,NS>).hash_code()){
-					n_leaf++;
-				}
 				if (mvpnode != NULL){
-					if (typeid(*mvpnode).hash_code() == typeid(MVPLeaf<T,BF,PL,LC,LPN,FO,NS>).hash_code()){
-						n_leaf--;
-					}
 					delete mvpnode;
 				}
 				if (n == 0) m_top = newnode;
@@ -192,49 +171,40 @@ void MVPTree<T,BF,PL,LC,LPN,FO,NS>::Add(vector<datapoint_t<T,PL>> &points){
 }
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-void MVPTree<T,BF,PL,LC,LPN,FO,NS>::Sync(){
+void mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::Sync(){
 	if (m_arrivals.size() > 0) {
 		Add(m_arrivals);
 	}
 }
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-const int MVPTree<T,BF,PL,LC,LPN,FO,NS>::Size()const{
-	return n_points;
-}
-
-template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-void MVPTree<T,BF,PL,LC,LPN,FO,NS>::CountNodes(int &n_internal, int &n_leaf)const{
-	n_internal = 0;
-	n_leaf = 0;
-
-	queue<MVPNode<T,BF,PL,LC,LPN,FO,NS>*> nodes;
+const size_t mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::Size()const{
+	size_t count = 0;
+	
+   	std::queue<MVPNode<T,BF,PL,LC,LPN,FO,NS>*> nodes;
 	if (m_top != NULL) nodes.push(m_top);
 
 	while (!nodes.empty()){
-		MVPNode<T,BF,PL,LC,LPN,FO,NS> *curr_node = nodes.front();
+		MVPNode<T,BF,PL,LC,LPN,FO,NS> *current = nodes.front();
 
-		if (typeid(*curr_node).hash_code() == typeid(MVPInternal<T,BF,PL,LC,LPN,FO,NS>).hash_code()){
-			n_internal++;
-		} else {
-			n_leaf++;
-		}
+		count += current->Size();
 	
 		for (int i=0;i < FO;i++){
-			MVPNode<T,BF,PL,LC,LPN,FO,NS> *child = curr_node->GetChildNode(i);
+			MVPNode<T,BF,PL,LC,LPN,FO,NS> *child = current->GetChildNode(i);
 			if (child != NULL) nodes.push(child);
 		}
 		
 		nodes.pop();
 	}
+	return count;
 }
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-void MVPTree<T,BF,PL,LC,LPN,FO,NS>::Clear(){
-	map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
+void mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::Clear(){
+	std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
 	if (m_top != NULL) currnodes[0] = m_top;
 
-	int n = 0, n_internal = 0, n_leaf = 0;
+	int n = 0;
 	do {
 		int n_nodes = pow(BF, n);
 		int n_childnodes = pow(BF, n+LPN);
@@ -243,15 +213,7 @@ void MVPTree<T,BF,PL,LC,LPN,FO,NS>::Clear(){
 			MVPNode<T,BF,PL,LC,LPN,FO,NS> *mvpnode = iter->second;
 
 			if (mvpnode != NULL){
-
 				ExpandNode(mvpnode, childnodes, index);
-				
-				if (typeid(*mvpnode).hash_code() == typeid(MVPInternal<T,BF,PL,LC,LPN,FO,NS>).hash_code()){
-					n_internal++;
-				} else {
-					n_leaf++;
-				}
-
 				delete mvpnode;
 			}
 		}
@@ -260,14 +222,13 @@ void MVPTree<T,BF,PL,LC,LPN,FO,NS>::Clear(){
 
 	} while (!currnodes.empty());
 	m_top = NULL;
-	n_points = 0;
 }
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-const vector<item_t<T>> MVPTree<T,BF,PL,LC,LPN,FO,NS>::Query(const T &target, const double radius) const{
-	vector<item_t<T>> results;
-	map<int, vector<double>*> tdistances, tdistances2;
-	map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
+const std::vector<mvp::item_t<T>> mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::Query(const T &target, const double radius) const{
+	std::vector<item_t<T>> results;
+	std::map<int, std::vector<double>*> tdistances, tdistances2;
+	std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
 	if (m_top != NULL) currnodes[0] = m_top;
 	
 	int n = 0;
@@ -278,7 +239,7 @@ const vector<item_t<T>> MVPTree<T,BF,PL,LC,LPN,FO,NS>::Query(const T &target, co
 		for (auto const &iter : currnodes){
 			int node_index = iter.first;
 			MVPNode<T,BF,PL,LC,LPN,FO,NS> *mvpnode = iter.second;
-			vector<double> *tpath = tdistances[node_index];
+			std::vector<double> *tpath = tdistances[node_index];
 			if (mvpnode)
 				mvpnode->TraverseNode(target, radius, childnodes,  tpath, tdistances2, node_index, n, false, results);
 		}
@@ -291,21 +252,21 @@ const vector<item_t<T>> MVPTree<T,BF,PL,LC,LPN,FO,NS>::Query(const T &target, co
 }
 
 template<typename T,int BF,int PL,int LC,int LPN,int FO,int NS>
-const int MVPTree<T,BF,PL,LC,LPN,FO,NS>::DeletePoint(const T &target){
-	vector<item_t<T>> results;
+const int mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::DeletePoint(const T &target){
+	std::vector<item_t<T>> results;
 
-	map<int, vector<double>*> tdistances, tdistances2;
-	map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
+	std::map<int, std::vector<double>*> tdistances, tdistances2;
+	std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
 	if (m_top != NULL) currnodes[0] = m_top;
 
 	int n = 0;
-	do {
+	while (!currnodes.empty()) {
 		int n_nodes = pow(BF, n);
 		int n_childnodes = pow(BF, n+LPN);
 		for (auto const &iter : currnodes){
 			int node_index = iter.first;
 			MVPNode<T,BF,PL,LC,LPN,FO,NS> *mvpnode = iter.second;
-			vector<double> *tpath = tdistances[node_index];
+			std::vector<double> *tpath = tdistances[node_index];
 			if (mvpnode){
 				mvpnode->TraverseNode(target, 0, childnodes, tpath, tdistances2, node_index, n, true, results);
 			}
@@ -313,22 +274,20 @@ const int MVPTree<T,BF,PL,LC,LPN,FO,NS>::DeletePoint(const T &target){
 		currnodes = move(childnodes);
 		tdistances = move(tdistances2);
 		n += LPN;
-	} while (!currnodes.empty());
+	};
 
-	n_points -= results.size();
-	
 	return (int)results.size();
 }
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-void MVPTree<T,BF,PL,LC,LPN,FO,NS>::PrintTree()const {
-	map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
+void mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::Print(std::ostream &ostrm)const {
+	std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
 	if (m_top != NULL) currnodes[0] = m_top;
 
 	int n=0;
 	do {
 
-		cout << dec << "level = " << n << " (" << currnodes.size() << " nodes" << endl;;
+		ostrm << std::dec << "level = " << n << " (" << currnodes.size() << " nodes" << std::endl;;
 		int n_nodes = pow(BF, n);
 		int n_childnodes = pow(BF, n+LPN);
 		for (auto const &iter : currnodes){
@@ -338,7 +297,7 @@ void MVPTree<T,BF,PL,LC,LPN,FO,NS>::PrintTree()const {
 				ExpandNode(mvpnode, childnodes, node_index);
 			}
 		}
-		cout << endl;
+		ostrm << std::endl;
 		currnodes = move(childnodes);
 		n+= LPN;
 	} while (!currnodes.empty());
@@ -347,8 +306,8 @@ void MVPTree<T,BF,PL,LC,LPN,FO,NS>::PrintTree()const {
 }
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-size_t MVPTree<T,BF,PL,LC,LPN,FO,NS>::MemoryUsage()const{
-	map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
+size_t mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::MemoryUsage()const{
+	std::map<int, MVPNode<T,BF,PL,LC,LPN,FO,NS>*> currnodes, childnodes;
 	if (m_top != NULL) currnodes[0] = m_top;
 
 	int n_internal=0, n_leaf=0;
@@ -368,11 +327,11 @@ size_t MVPTree<T,BF,PL,LC,LPN,FO,NS>::MemoryUsage()const{
 	
 	return  n_internal*sizeof(MVPInternal<T,BF,PL,LC,LPN,FO,NS>)
 		+ n_leaf*sizeof(MVPLeaf<T,BF,PL,LC,LPN,FO,NS>)
-		+ sizeof(MVPTree<T,BF,PL,LC,LPN,FO,NS>);
+		+ sizeof(mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>);
 }
 
 template<typename T,int BF,int PL, int LC, int LPN, int FO, int NS>
-void MVPTree<T,BF,PL,LC,LPN,FO,NS>::SetSync(int n){
+void mvp::MVPTree<T,BF,PL,LC,LPN,FO,NS>::SetSync(int n){
 	n_sync = n;
 }
 

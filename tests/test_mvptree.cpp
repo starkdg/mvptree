@@ -7,8 +7,11 @@
 #include "mvptree/key.hpp"
 
 using namespace std;
+using namespace mvp;
 
 static long long m_id = 1;
+static long long g_id = 1000;
+
 static random_device m_rd;
 static mt19937_64 m_gen(m_rd());
 static uniform_int_distribution<uint64_t> m_distrib(0);
@@ -41,14 +44,14 @@ int generate_cluster(vector<datapoint_t<H64KeyObject,PL>> &points, uint64_t cent
 	static uniform_int_distribution<int> bitindex_distr(0, 63);
 		
 	uint64_t mask = 0x01;
-	points.push_back({m_id++, H64KeyObject(center) });
+	points.push_back({g_id++, H64KeyObject(center) });
 	for (int i=0;i < N-1;i++){
 		uint64_t val = center;
 		int dist = radius_distr(m_gen);
 		for (int j=0;j < dist;j++){
 			val ^= (mask << bitindex_distr(m_gen));
 		}
-		points.push_back({ m_id++, H64KeyObject(val)} );
+		points.push_back({ g_id++, H64KeyObject(val)} );
 	}
 	return N;
 }
@@ -119,10 +122,6 @@ void simple_test(){
 	assert(n == n_points + cluster_size + n_points2);
 
 
-	int internal_nodes = 0, leaf_nodes = 0;
-	tree.CountNodes(internal_nodes, leaf_nodes);
-	cout << "internal: " << internal_nodes << " leaf: " << leaf_nodes << endl;
-	
 	cout << "Clear tree" << endl;
 	tree.Clear();
 	
@@ -179,13 +178,9 @@ void test(){
 		assert(results.size() >= n_clusters);
 	}
 
-	int n_internal, n_leaf;
-	mvptree.CountNodes(n_internal, n_leaf);
-	cout << "internal nodes: " << n_internal << endl;
-	cout << "leaf nodes: " << n_leaf << endl;
-
+	cout << "Delete id == 1000" << endl;
 	int ndels = mvptree.DeletePoint(H64KeyObject(centers[0]));
-	cout << "Deletes " << ndels << " points" << endl;
+	cout << "Deleted " << ndels << " points" << endl;
 	assert(ndels == 1);
 
 	sz = mvptree.Size();

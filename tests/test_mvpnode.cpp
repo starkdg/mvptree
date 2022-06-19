@@ -8,6 +8,7 @@
 #include "mvptree/key.hpp"
 
 using namespace std;
+using namespace mvp;
 
 static long long m_id = 1;
 static random_device m_rd;
@@ -67,9 +68,9 @@ void test_mvpnode(){
 	assert(leaf == node);
 	assert(childpoints.size() == 0);
 	
-	int n = node->GetCount();
+	int n = node->Size();
 	cout << "leaf contains " << n << " points" << endl;
-	assert(n  == n_points - 2);
+	assert(n  == n_points);
 
 
 	const int cluster_size = 5;

@@ -13,7 +13,7 @@
 #include <mvptree/key.hpp>
 
 using namespace std;
-
+using namespace mvp;
 
 static long long m_id = 1;
 static long long g_id = 100000000;

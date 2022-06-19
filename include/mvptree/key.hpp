@@ -1,8 +1,9 @@
 #ifndef _KEY_HPP
 #define _KEY_HPP
+#include <cstdint>
 
 struct H64KeyObject {
-	uint64_t key;
+	std::uint64_t key;
 	H64KeyObject():key(0){}
 	H64KeyObject(const uint64_t key):key(key){}
 	H64KeyObject(const H64KeyObject &other):key(other.key){}
