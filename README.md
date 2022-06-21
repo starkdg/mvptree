@@ -1,101 +1,120 @@
 # MVPTree (Multiple Vantage Point Tree Data structure)
 
-A distance-based tree data structure for the indexing of point
-data.  Points are indexed according to its distance from selected
-vantage points.  The vantage points are arbitrarily taken from the
-data itself.  The data points are simply scalar, but the code
-can be easily modified to work for any multi-dimensional data in
-a proper metric space.  In other words, it must have a relevant
-distance function `distance(x, y) >= 0` for which the following three
-axioms hold:
-
-For any points, x, y and z,
-
-1. distance(x, y) == 0 iff x == y  (identity)
-2. distance(x, y) == distance(y, x) (symmetry)
-2. distance(x, y) <= distance(x,z) + distance(z, y) (triangle inequality)
-
-## Use 
-
-DataPoint is an abstract class intended to hold individual data points.  Subclass
-from here to hold application specific data.  Two existing DataPoint subclasses
-are DblDataPoint and H64DataPoint.
-
-DblDataPoint is a general demonstration.  It represents a single floating point
-value.
-
-H64DataPoint represents a 64-bit unsigned integer and uses the hamming distance
-which exists in the discrete 64-dim hamming space.  Distance is calculated by
-the number of bits that are different from each other.  
+A distance-based data structure for the indexing of multi-dimensional data.
+The MVPTree indexes vector objects according to its distance from select vantage points chosen directly from the indexed data.
 
 
-Distances are simply the absolute value of the difference between two values.
-The value is just a scalar but can be easily modified to be any multi-dimensional
-vector with a corresponding metric distance.  It must be a proper metric distance,
-obeying the following:
+
+## Performance Tests
+
+The following tests measure the build and query times for various index sizes.
+Data points are 16-dimensional real-valued vector object (uniform independantly distributed).
+Build operations reflect the number of distance operations needed to build the tree.
+Likewise, query operations are the average number of distance operations to query the index for a constant radius of 0.04.
+Both build and query operations are normalized to the size of the tree and expressed as a percentage.
+Each line in the chart is the average of 5 trial runs, where the tree structure is built up, queried for 10 clusters
+of 10 points, and then taken down.  
 
 
-The interface is largely self-explanatory.  Here are the relevant
-methods for the MVPTree class:
+|   N   |   MEM   |   Build opers   |   Build time   |   Query opers   |   Query time   |
+|-------|---------|-----------------|----------------|-----------------|----------------|
+| 100K  |  122MB  |  2554%  |  21.4$mu;s  |  0.0087%  |  42.4$mu;s  |
+| 200K  |  289MB  |  2693%  |  26.3$mu;s  |  0.0048%  |  63.4&mu;s  |   
+| 400K  |  548MB  |  2792%  |  36.8$mu;s  |  0.0022%  |  70.2&mu;s  |
+| 800K  |  963MB  |  2872%  |  59.4&mu;s  |  0.0012%  |  86.0&mu;s  |
+|  1M   |  1.1GB  |  2899%  |  62.9&mu;s  |  0.0010%  |  107&mu;s |
+|  2M   |  2.7GB  |  3021%  |  79.6&mu;s  |  0.0005%  |  163&mu;s |
+|  4M   |  5.5GB  |  3139%  |  101&mu;s   |  0.0002%  |  242&mu;s |
 
-```
-void Add(DataPoint *dp);
-void Add(vector<DataPoint*> &points)
-```
 
-Datapoints can be added separately, but it is better to add points in batches.  For that
-reason, the single Add method adds each point to a buffer and invokes the batch method when
-a threshold number is accumulated.    
 
-```
-void Sync()
-```
+Here are the query stats for various radius sizes and a constant index size of N = 1,000,000:
 
-adds the buffer to the data structure before reaching the threshold.
+| radius | Query Opers. | Query Time |
+|--------|--------------|------------|
+| 0.02 | 0.00094% | 30.9&mu;s |
+| 0.04 | 0.00092% | 121&mu;s |
+| 0.06 | 0.0012% | 359&mu;s |
+| 0.08 | 0.00041% | 971&mu;s |
+| 0.10 | 0.0241% | 2.67&mu;s |
 
+
+To try it for yourself, run the test program, `runmvptree2`.  You can fiddle with the test parameters
+in the file, tests/run_mvptree2.cpp.  
+
+## Programming
+
+Use the template header files.
+First, create a custom data type. Examples are provided under key.hpp:
 
 ```
-const vector<DataPoint*> Query(const DataPoint &target, const double radius)
+struct VectorKeyObject {
+	double key[16];
+	VectorKeyObject(){};
+	VectorKeyObject(const double otherkey[]){
+		for (int i=0;i < 16;i++) key[i] = otherkey[i];
+	}
+	VectorKeyObject(const VectorKeyObject &other){
+		for (int i=0;i < 16;i++) key[i] = other.key[i];
+	}
+	const VectorKeyObject& operator=(const VectorKeyObject &other){
+		for (int i=0;i < 16;i++) key[i] = other.key[i];
+		return *this;
+	}
+	const double distance(const VectorKeyObject &other)const {
+		double sum = 0;
+		for (int i=0;i < 16;i++){
+			sum += pow(key[i] - other.key[i], 2.0);
+		}
+		return sqrt(sum/16.0);
+	}
+	
+};
 ```
 
-queries a target DataPoint for all points that fall within a radius of the target.
+The custom data type must provide the copy contructor, assignment operator and distance function implementation.  
 
 
-```
-void Delete(long long id)
-```
-
-deletes the datapoint.
+Next, use the templated class:
 
 ```
-const int Size()
+#include "mvptree/mvptree.hpp"
+
+
+MVPTree<VectorKeyObject> mvptree;
+
+vector<VectorKeyObject> points;
+
+mvptree.Add(points);
+mvptree.Sync();
+
+int sz = mvptree.Size();
+assert(sz == points.size());
+
+
+VectorKeyObject target;
+double radius = ...  //  value for data set 
+vector<item_t<VectorKeyObject>> results = mvptree.Query(target, radius);
+
+
+mvptree.Clear();
+sz = mvptree.Size();
+assert(sz == 0);
+
 ```
 
-returns the number of DataPoints currently indexed.
-
-```
-const size_t MemoryUsage()
-```
-
-returns the number of bytes the index currently occupies.
-
-```
-void Clear()
-```
-
-clears the index.
-
-See `mvptree.hpp` header for fuller definition of the api.
+For more details, see the programs in the tests directory. 
 
 ## Install
 
 ```
 cmake .
 make
+make test
 make install
 ```
 
-You can also run `ctest` or `make test` to run the tests.  
+
 
 
 
