@@ -29,11 +29,13 @@ namespace mvp {
 
 		static MVPNode<T,BF,PL,LC,LPN,FO,NS>* CreateNode(std::vector<datapoint_t<T,PL>> &points,
 														 std::map<int,std::vector<datapoint_t<T,PL>>*> &childpoints,
-														 int level, int index);
+														 int level,
+														 int index);
 	
 		virtual MVPNode<T,BF,PL,LC,LPN,FO,NS>* AddDataPoints(std::vector<datapoint_t<T,PL>> &points,
 															 std::map<int,std::vector<datapoint_t<T,PL>>*> &childpoints,
-															 const int level, const int index) = 0;
+															 const int level,
+															 const int index) = 0;
 
 		virtual const size_t nbytes()const = 0;
 
@@ -93,9 +95,11 @@ namespace mvp {
 	public:
 		MVPInternal();
 		~MVPInternal(){};
+		
 		MVPNode<T,BF,PL,LC,LPN,FO,NS>* AddDataPoints(std::vector<datapoint_t<T,PL>> &points,
 													 std::map<int,std::vector<datapoint_t<T,PL>>*> &childpoints,
-													 const int level, const int index);
+													 const int level,
+													 const int index);
 
 		const size_t nbytes()const;
 		

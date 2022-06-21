@@ -1,12 +1,6 @@
 #ifndef _DATAPOINT_H
 #define _DATAPOINT_H
 
-#include <cstring>
-#include <stdexcept>
-#include <cmath>
-#include <cstring>
-#include <array>
-
 
 namespace mvp {
 	
